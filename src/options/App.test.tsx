@@ -17,7 +17,15 @@ describe('OptionsApp', () => {
     );
     const saveCustomEngines = vi.fn<(_: SearchEngine[]) => Promise<void>>(() => Promise.resolve());
 
-    render(<OptionsApp loadCustomEngines={loadCustomEngines} saveCustomEngines={saveCustomEngines} />);
+    const resolveModeColor = vi.fn(() => Promise.resolve('#336699'));
+
+    render(
+      <OptionsApp
+        loadCustomEngines={loadCustomEngines}
+        saveCustomEngines={saveCustomEngines}
+        resolveModeColor={resolveModeColor}
+      />
+    );
 
     expect(await screen.findByText('Linear')).toBeTruthy();
 
@@ -40,10 +48,17 @@ describe('OptionsApp', () => {
           id: 'custom-docs',
           name: 'Docs',
           keyword: 'docs',
-          searchUrl: 'https://docs.example.com/search?q={query}'
+          searchUrl: 'https://docs.example.com/search?q={query}',
+          modeColor: '#336699'
         }
       ]);
     });
+    expect(resolveModeColor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'custom-docs',
+        searchUrl: 'https://docs.example.com/search?q={query}'
+      })
+    );
     expect(screen.getByText('Docs')).toBeTruthy();
   });
 

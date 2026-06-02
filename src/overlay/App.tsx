@@ -13,7 +13,7 @@ import {
 import { loadSearchEngines } from '../shared/search-engine-storage';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
-import { getImmediateSearchEngineModeColor, resolveSearchEngineModeColor } from './mode-color';
+import { getImmediateSearchEngineModeColor } from './mode-color';
 
 type Mode = 'google' | 'history' | 'window' | 'engine';
 
@@ -21,14 +21,12 @@ export type AppProps = {
   onClose: () => void;
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
   loadEngines?: () => Promise<SearchEngine[]>;
-  resolveModeColor?: (engine: SearchEngine | null) => Promise<string | undefined>;
 };
 
 export function App({
   onClose,
   sendMessage = sendChromeMessage,
-  loadEngines = loadSearchEngines,
-  resolveModeColor = resolveSearchEngineModeColor
+  loadEngines = loadSearchEngines
 }: AppProps) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('google');
@@ -38,7 +36,6 @@ export function App({
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
-  const [modeColor, setModeColor] = useState<string | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -74,27 +71,6 @@ export function App({
   useEffect(() => {
     setSelectedIndex(0);
   }, [mode, query]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (mode !== 'engine' || !activeEngine) {
-      setModeColor(undefined);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    void resolveModeColor(activeEngine).then((color) => {
-      if (!cancelled) {
-        setModeColor(color);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeEngine, mode, resolveModeColor]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -223,7 +199,7 @@ export function App({
     return query.trim() ? 'No Google search available' : 'Start typing to search Google';
   }, [activeEngine, mode, query]);
   const searchBarModeColor =
-    mode === 'engine' && activeEngine ? modeColor ?? getImmediateSearchEngineModeColor(activeEngine) : undefined;
+    mode === 'engine' && activeEngine ? getImmediateSearchEngineModeColor(activeEngine) : undefined;
 
   const commit = async (suggestion = activeSuggestion) => {
     const fallback = query.trim();

@@ -14,6 +14,12 @@ describe('search engines', () => {
     expect(findSearchEngineShortcut('unknown')).toBeUndefined();
   });
 
+  it('defines fixed mode colors for built-in quicksearch engines', () => {
+    expect(findSearchEngineShortcut('gh')?.modeColor).toBe('#24292f');
+    expect(findSearchEngineShortcut('yt')?.modeColor).toBe('#ff0033');
+    expect(findSearchEngineShortcut('sp')?.modeColor).toBe('#1db954');
+  });
+
   it('creates encoded search urls', () => {
     const github = findSearchEngineShortcut('gh');
     const youtube = findSearchEngineShortcut('yt');

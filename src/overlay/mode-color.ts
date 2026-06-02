@@ -5,15 +5,6 @@ const DEFAULT_FAVICON_SIZE = 32;
 const MIN_ALPHA = 16;
 const MAX_CHANNEL_VALUE = 245;
 const COLOR_BUCKET_SIZE = 24;
-const BUILT_IN_MODE_COLORS: Record<string, string> = {
-  github: '#24292f',
-  youtube: '#ff0033',
-  spotify: '#1db954',
-  npm: '#cb3837',
-  mdn: '#1b1b1b',
-  stackoverflow: '#f48024',
-  wikipedia: '#54595d'
-};
 const faviconDataUrlCache = new Map<string, Promise<string | undefined>>();
 
 export async function resolveSearchEngineModeColor(engine: SearchEngine | null): Promise<string | undefined> {
@@ -38,7 +29,7 @@ export function getImmediateSearchEngineModeColor(engine: SearchEngine | null): 
     return undefined;
   }
 
-  return BUILT_IN_MODE_COLORS[engine.id];
+  return engine.modeColor;
 }
 
 export async function requestSearchEngineFaviconDataUrl(engine: SearchEngine): Promise<string | undefined> {

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { SearchEngine } from '../shared/search-engines';
 import { getCustomSearchEngines, saveCustomSearchEngines } from '../shared/search-engine-storage';
+import { resolveSearchEngineModeColor } from '../overlay/mode-color';
 
 export type OptionsAppProps = {
   loadCustomEngines?: () => Promise<SearchEngine[]>;
   saveCustomEngines?: (engines: SearchEngine[]) => Promise<void>;
+  resolveModeColor?: (engine: SearchEngine) => Promise<string | undefined>;
 };
 
 type Draft = {
@@ -17,7 +19,8 @@ const EMPTY_DRAFT: Draft = { name: '', keyword: '', searchUrl: '' };
 
 export function OptionsApp({
   loadCustomEngines = getCustomSearchEngines,
-  saveCustomEngines: saveEngines = saveCustomSearchEngines
+  saveCustomEngines: saveEngines = saveCustomSearchEngines,
+  resolveModeColor = resolveSearchEngineModeColor
 }: OptionsAppProps) {
   const [engines, setEngines] = useState<SearchEngine[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -38,12 +41,14 @@ export function OptionsApp({
   }, [loadCustomEngines]);
 
   const addEngine = async () => {
-    const nextEngine = createEngine(draft);
-    if (!nextEngine.searchUrl.includes('{query}')) {
+    const baseEngine = createEngine(draft);
+    if (!baseEngine.searchUrl.includes('{query}')) {
       setError('Search URL must include {query}');
       return;
     }
 
+    const modeColor = await resolveModeColor(baseEngine);
+    const nextEngine = modeColor ? { ...baseEngine, modeColor } : baseEngine;
     const nextEngines = [...engines.filter((engine) => engine.keyword !== nextEngine.keyword), nextEngine];
     setEngines(nextEngines);
     setDraft(EMPTY_DRAFT);

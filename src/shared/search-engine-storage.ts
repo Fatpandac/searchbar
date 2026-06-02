@@ -54,6 +54,7 @@ function isSearchEngine(value: unknown): value is SearchEngine {
     typeof engine.name === 'string' &&
     typeof engine.keyword === 'string' &&
     typeof engine.searchUrl === 'string' &&
+    (engine.modeColor === undefined || typeof engine.modeColor === 'string') &&
     engine.name.trim().length > 0 &&
     engine.keyword.trim().length > 0 &&
     engine.searchUrl.includes('{query}')

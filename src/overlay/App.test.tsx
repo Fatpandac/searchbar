@@ -208,52 +208,28 @@ describe('App', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('uses the active quicksearch favicon color for the mode badge', async () => {
-    const resolveModeColor = vi.fn(() => Promise.resolve('rgb(36, 41, 47)'));
-
-    render(
-      <App
-        sendMessage={vi.fn(() => Promise.resolve({ type: 'NAV_OK' as const }))}
-        onClose={vi.fn()}
-        resolveModeColor={resolveModeColor}
-      />
-    );
-    const nextInput = screen.getByRole('combobox') as HTMLInputElement;
-
-    fireEvent.input(nextInput, { target: { value: 'gh' } });
-    fireEvent.keyDown(nextInput, { key: 'Tab' });
-
-    const mode = await screen.findByText('GitHub');
-    await waitFor(() => {
-      expect(resolveModeColor).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'github', name: 'GitHub' })
-      );
-      expect((mode as HTMLElement).style.background).toBe('rgb(36, 41, 47)');
-    });
-  });
-
-  it('shows a built-in quicksearch mode color before favicon extraction finishes', async () => {
-    const resolveModeColor = vi.fn(
-      () =>
-        new Promise<string | undefined>(() => {
-          // Keep the async favicon color pending so the test only observes the immediate color.
-        })
+  it('uses the search engine mode color without resolving favicon during quicksearch activation', async () => {
+    const loadEngines = vi.fn(() =>
+      Promise.resolve([
+        {
+          id: 'custom-docs',
+          name: 'Docs',
+          keyword: 'docs',
+          searchUrl: 'https://docs.example.com/search?q={query}',
+          modeColor: '#336699'
+        }
+      ])
     );
 
-    render(
-      <App
-        sendMessage={vi.fn(() => Promise.resolve({ type: 'NAV_OK' as const }))}
-        onClose={vi.fn()}
-        resolveModeColor={resolveModeColor}
-      />
-    );
+    render(<App sendMessage={vi.fn(() => Promise.resolve({ type: 'NAV_OK' as const }))} onClose={vi.fn()} loadEngines={loadEngines} />);
     const input = screen.getByRole('combobox') as HTMLInputElement;
 
-    fireEvent.input(input, { target: { value: 'gh' } });
+    await waitFor(() => expect(loadEngines).toHaveBeenCalled());
+    fireEvent.input(input, { target: { value: 'docs' } });
     fireEvent.keyDown(input, { key: 'Tab' });
 
-    const mode = await screen.findByText('GitHub');
-    expect((mode as HTMLElement).style.background).toBe('rgb(36, 41, 47)');
+    const mode = await screen.findByText('Docs');
+    expect((mode as HTMLElement).style.background).toBe('rgb(51, 102, 153)');
   });
 
   it('shows a shortcut hint inside the input without adding a list item', async () => {

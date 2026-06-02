@@ -4,6 +4,7 @@ export type SearchEngine = {
   keyword: string;
   aliases?: string[];
   searchUrl: string;
+  modeColor?: string;
 };
 
 export const SEARCH_ENGINES: SearchEngine[] = [
@@ -12,47 +13,54 @@ export const SEARCH_ENGINES: SearchEngine[] = [
     name: 'GitHub',
     keyword: 'gh',
     aliases: ['github'],
-    searchUrl: 'https://github.com/search?q={query}'
+    searchUrl: 'https://github.com/search?q={query}',
+    modeColor: '#24292f'
   },
   {
     id: 'youtube',
     name: 'YouTube',
     keyword: 'yt',
     aliases: ['youtube'],
-    searchUrl: 'https://www.youtube.com/results?search_query={query}'
+    searchUrl: 'https://www.youtube.com/results?search_query={query}',
+    modeColor: '#ff0033'
   },
   {
     id: 'spotify',
     name: 'Spotify',
     keyword: 'sp',
     aliases: ['spotify'],
-    searchUrl: 'https://open.spotify.com/search/{query}'
+    searchUrl: 'https://open.spotify.com/search/{query}',
+    modeColor: '#1db954'
   },
   {
     id: 'npm',
     name: 'npm',
     keyword: 'npm',
-    searchUrl: 'https://www.npmjs.com/search?q={query}'
+    searchUrl: 'https://www.npmjs.com/search?q={query}',
+    modeColor: '#cb3837'
   },
   {
     id: 'mdn',
     name: 'MDN',
     keyword: 'mdn',
-    searchUrl: 'https://developer.mozilla.org/search?q={query}'
+    searchUrl: 'https://developer.mozilla.org/search?q={query}',
+    modeColor: '#1b1b1b'
   },
   {
     id: 'stackoverflow',
     name: 'Stack Overflow',
     keyword: 'so',
     aliases: ['stackoverflow'],
-    searchUrl: 'https://stackoverflow.com/search?q={query}'
+    searchUrl: 'https://stackoverflow.com/search?q={query}',
+    modeColor: '#f48024'
   },
   {
     id: 'wikipedia',
     name: 'Wikipedia',
     keyword: 'wiki',
     aliases: ['w'],
-    searchUrl: 'https://en.wikipedia.org/w/index.php?search={query}'
+    searchUrl: 'https://en.wikipedia.org/w/index.php?search={query}',
+    modeColor: '#54595d'
   }
 ];
 

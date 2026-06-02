@@ -106,6 +106,29 @@
   padding: 8px;
   overflow-y: auto;
   list-style: none;
+  scrollbar-color: rgba(21, 23, 29, 0.26) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.searchbar-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.searchbar-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.searchbar-list::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(21, 23, 29, 0.24);
+  background-clip: padding-box;
+}
+
+.searchbar-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(21, 23, 29, 0.36);
+  background-clip: padding-box;
 }
 
 .searchbar-item {
@@ -221,6 +244,20 @@
 
   .searchbar-url {
     color: rgba(245, 247, 251, 0.58);
+  }
+
+  .searchbar-list {
+    scrollbar-color: rgba(245, 247, 251, 0.3) transparent;
+  }
+
+  .searchbar-list::-webkit-scrollbar-thumb {
+    background: rgba(245, 247, 251, 0.26);
+    background-clip: padding-box;
+  }
+
+  .searchbar-list::-webkit-scrollbar-thumb:hover {
+    background: rgba(245, 247, 251, 0.4);
+    background-clip: padding-box;
   }
 }
 

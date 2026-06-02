@@ -26,6 +26,7 @@ const NATIVE_INPUT_EVENT_TYPES = [
 ] as const;
 
 export function renderOverlay(root: ParentNode, options: OverlayOptions): OverlayHandle {
+  const close = closeOnce(options.onClose);
   const style = document.createElement('style');
   style.textContent = cssText;
 
@@ -36,11 +37,13 @@ export function renderOverlay(root: ParentNode, options: OverlayOptions): Overla
   root.appendChild(container);
   containers.set(root, container);
 
-  render(<App onClose={options.onClose} />, container);
+  render(<App onClose={close} />, container);
 
   const input = () => container.querySelector('input');
   const searchInput = input();
   if (searchInput) {
+    searchInput.addEventListener('keydown', (event) => closeOnEscape(event, close), true);
+    searchInput.addEventListener('blur', close, true);
     for (const eventType of NATIVE_INPUT_EVENT_TYPES) {
       searchInput.addEventListener(eventType, stopInputEventPropagation);
     }
@@ -144,6 +147,31 @@ export function destroyOverlay(root: ParentNode): void {
 
 function stopInputEventPropagation(event: Event): void {
   event.stopPropagation();
+}
+
+function closeOnEscape(event: KeyboardEvent, onClose: () => void): void {
+  if (event.key !== 'Escape') {
+    return;
+  }
+
+  if (event.cancelable) {
+    event.preventDefault();
+  }
+  event.stopImmediatePropagation();
+  onClose();
+}
+
+function closeOnce(onClose: () => void): () => void {
+  let closed = false;
+
+  return () => {
+    if (closed) {
+      return;
+    }
+
+    closed = true;
+    onClose();
+  };
 }
 
 function isPrintableKey(event: KeyboardEvent): boolean {

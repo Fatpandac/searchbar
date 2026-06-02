@@ -92,4 +92,59 @@ describe('renderOverlay', () => {
 
     destroyOverlay(root);
   });
+
+  it('closes immediately on native Escape inside the search input', () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+    const event = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true
+    });
+    const preventDefault = vi.spyOn(event, 'preventDefault');
+    const stopImmediatePropagation = vi.spyOn(event, 'stopImmediatePropagation');
+
+    input.dispatchEvent(event);
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopImmediatePropagation).toHaveBeenCalled();
+
+    destroyOverlay(root);
+  });
+
+  it('closes when the search input loses focus', () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    destroyOverlay(root);
+  });
+
+  it('only closes once when Escape also blurs the search input', () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    destroyOverlay(root);
+  });
 });

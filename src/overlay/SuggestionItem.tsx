@@ -25,6 +25,8 @@ export function SuggestionItem({ suggestion, selected, onPointerEnter, onClick }
       role="option"
       aria-selected={selected}
       onPointerEnter={onPointerEnter}
+      onPointerDown={(event) => event.preventDefault()}
+      onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
     >
       <span className="searchbar-favicon" aria-hidden="true">

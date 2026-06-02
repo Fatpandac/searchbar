@@ -142,6 +142,84 @@ describe('createContentController', () => {
     expect(handleKeyboardEvent).toHaveBeenCalledWith(event);
   });
 
+  it('closes directly on page Escape while mounted', () => {
+    const focusOverlay = vi.fn();
+    const handleKeyboardEvent = vi.fn();
+    const destroy = vi.fn();
+    const pageInput = document.createElement('input');
+    document.body.append(pageInput);
+
+    const controller = trackController(
+      createContentController({
+        renderOverlay: vi.fn(() => ({ focus: focusOverlay, handleKeyboardEvent })),
+        destroyOverlay: destroy
+      })
+    );
+
+    controller.start();
+    controller.mount();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true
+    });
+    const preventDefault = vi.spyOn(event, 'preventDefault');
+    const stopImmediatePropagation = vi.spyOn(event, 'stopImmediatePropagation');
+
+    pageInput.dispatchEvent(event);
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(0);
+    expect(handleKeyboardEvent).not.toHaveBeenCalled();
+    expect(focusOverlay).not.toHaveBeenCalled();
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopImmediatePropagation).toHaveBeenCalled();
+  });
+
+  it('closes directly on overlay Escape before the input handles it', () => {
+    const handleKeyboardEvent = vi.fn();
+    const destroy = vi.fn();
+    let overlayInput: HTMLInputElement | undefined;
+
+    const controller = trackController(
+      createContentController({
+        renderOverlay: vi.fn((root) => {
+          overlayInput = document.createElement('input');
+          root.appendChild(overlayInput);
+          return { focus: vi.fn(), handleKeyboardEvent };
+        }),
+        destroyOverlay: destroy
+      })
+    );
+
+    controller.start();
+    controller.mount();
+
+    const input = overlayInput;
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    if (!input) {
+      throw new Error('overlay input was not mounted');
+    }
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+      composed: true
+    });
+    const preventDefault = vi.spyOn(event, 'preventDefault');
+    const stopImmediatePropagation = vi.spyOn(event, 'stopImmediatePropagation');
+
+    input.dispatchEvent(event);
+
+    expect(destroy).toHaveBeenCalledTimes(1);
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(0);
+    expect(handleKeyboardEvent).not.toHaveBeenCalled();
+    expect(preventDefault).toHaveBeenCalled();
+    expect(stopImmediatePropagation).toHaveBeenCalled();
+  });
+
   it('lets keyboard events from inside the overlay shadow root use the native input path', () => {
     const handleKeyboardEvent = vi.fn();
     let overlayInput: HTMLInputElement | undefined;

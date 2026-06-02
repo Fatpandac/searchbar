@@ -59,6 +59,7 @@ export function createContentController(options: ContentControllerOptions = {}) 
   let compositionActive = false;
 
   const unmount = () => {
+    compositionActive = false;
     if (!state) {
       window.__searchbar_mounted__ = false;
       return;
@@ -111,6 +112,16 @@ export function createContentController(options: ContentControllerOptions = {}) 
       isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
 
     if (state) {
+      if (isKeyDown && event.key === 'Escape') {
+        markCapturedInputEvent(event);
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        event.stopImmediatePropagation();
+        unmount();
+        return;
+      }
+
       if (isEventFromOverlay(event, state.host)) {
         return;
       }
@@ -120,11 +131,12 @@ export function createContentController(options: ContentControllerOptions = {}) 
         event.preventDefault();
       }
       event.stopImmediatePropagation();
-      state.overlay?.focus();
       if (isSummon && !event.altKey && !event.shiftKey) {
         toggle();
         return;
       }
+
+      state.overlay?.focus();
 
       if (event.type === 'compositionstart') {
         compositionActive = true;

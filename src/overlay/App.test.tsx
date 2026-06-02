@@ -81,6 +81,30 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: 'react' });
   });
 
+  it('keeps focus in the search input when pressing a suggestion', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'react hooks',
+              description: 'React Hooks',
+              url: 'https://www.google.com/search?q=react+hooks'
+            }
+          ]
+        };
+      }
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'react' } });
+    const suggestion = await screen.findByRole('option');
+
+    expect(fireEvent.mouseDown(suggestion)).toBe(false);
+  });
+
   it('uses Shift+Tab for history search', async () => {
     const { input, sendMessage } = setup((message) => {
       if (message.type === 'QUERY_HISTORY') {

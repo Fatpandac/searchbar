@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { SearchRequest, SearchResponse, Suggestion } from '../shared/messages';
 import {
   findSearchEngineShortcut,
@@ -41,6 +41,13 @@ export function App({
     setSelectedIndex(0);
     setSuggestions(nextSuggestions);
   };
+  const requestFavicon = useCallback(
+    async (pageUrl: string) => {
+      const response = await sendMessage({ type: 'QUERY_FAVICON', pageUrl });
+      return response.type === 'FAVICON' ? response.dataUrl : undefined;
+    },
+    [sendMessage]
+  );
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true));
@@ -307,6 +314,7 @@ export function App({
           suggestions={suggestions}
           selectedIndex={selectedIndex}
           emptyLabel={emptyLabel}
+          requestFavicon={requestFavicon}
           onSelect={setSelectedIndex}
           onCommit={(suggestion) => void commit(suggestion)}
         />

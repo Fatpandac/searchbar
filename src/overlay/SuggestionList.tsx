@@ -5,6 +5,7 @@ type SuggestionListProps = {
   suggestions: Suggestion[];
   selectedIndex: number;
   emptyLabel: string;
+  requestFavicon: (pageUrl: string) => Promise<string | undefined>;
   onSelect: (index: number) => void;
   onCommit: (suggestion: Suggestion) => void;
 };
@@ -13,6 +14,7 @@ export function SuggestionList({
   suggestions,
   selectedIndex,
   emptyLabel,
+  requestFavicon,
   onSelect,
   onCommit
 }: SuggestionListProps) {
@@ -27,6 +29,7 @@ export function SuggestionList({
           key={`${suggestion.type}:${suggestion.url}`}
           suggestion={suggestion}
           selected={index === selectedIndex}
+          requestFavicon={requestFavicon}
           onPointerEnter={() => onSelect(index)}
           onClick={() => onCommit(suggestion)}
         />

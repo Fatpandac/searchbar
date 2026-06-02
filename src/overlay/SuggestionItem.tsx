@@ -1,21 +1,54 @@
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { Suggestion } from '../shared/messages';
 
 type SuggestionItemProps = {
   suggestion: Suggestion;
   selected: boolean;
+  requestFavicon: (pageUrl: string) => Promise<string | undefined>;
   onPointerEnter: () => void;
   onClick: () => void;
 };
 
-export function SuggestionItem({ suggestion, selected, onPointerEnter, onClick }: SuggestionItemProps) {
+export function SuggestionItem({
+  suggestion,
+  selected,
+  requestFavicon,
+  onPointerEnter,
+  onClick
+}: SuggestionItemProps) {
   const itemRef = useRef<HTMLLIElement>(null);
+  const [faviconSrc, setFaviconSrc] = useState(() => faviconUrlFor(suggestion));
+  const [faviconVisible, setFaviconVisible] = useState(true);
 
   useEffect(() => {
     if (selected) {
       itemRef.current?.scrollIntoView?.({ block: 'nearest' });
     }
   }, [selected]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fallbackUrl = faviconUrlFor(suggestion);
+    setFaviconVisible(true);
+    setFaviconSrc(fallbackUrl);
+
+    if (!shouldRequestWebsiteFavicon(suggestion)) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void requestFavicon(suggestion.url).then((dataUrl) => {
+      if (!cancelled && dataUrl) {
+        setFaviconVisible(true);
+        setFaviconSrc(dataUrl);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [requestFavicon, suggestion]);
 
   return (
     <li
@@ -30,7 +63,7 @@ export function SuggestionItem({ suggestion, selected, onPointerEnter, onClick }
       onClick={onClick}
     >
       <span className="searchbar-favicon" aria-hidden="true">
-        {faviconFor(suggestion)}
+        {faviconFor(suggestion, faviconSrc, faviconVisible, () => setFaviconVisible(false))}
       </span>
       <span className="searchbar-copy">
         <span className="searchbar-title">{suggestion.title}</span>
@@ -69,7 +102,12 @@ function typeLabel(suggestion: Suggestion): string {
   return 'History';
 }
 
-function faviconFor(suggestion: Suggestion) {
+function faviconFor(
+  suggestion: Suggestion,
+  faviconSrc: string,
+  faviconVisible: boolean,
+  onFaviconError: () => void
+) {
   if (suggestion.type === 'chrome') {
     return 'C';
   }
@@ -85,10 +123,17 @@ function faviconFor(suggestion: Suggestion) {
   return (
     <img
       alt=""
-      src={`chrome://favicon2/?size=32&pageUrl=${encodeURIComponent(suggestion.url)}`}
-      onError={(event) => {
-        event.currentTarget.style.display = 'none';
-      }}
+      src={faviconSrc}
+      style={{ display: faviconVisible ? undefined : 'none' }}
+      onError={onFaviconError}
     />
   );
+}
+
+function shouldRequestWebsiteFavicon(suggestion: Suggestion): boolean {
+  return suggestion.type === 'history' || suggestion.type === 'tab';
+}
+
+function faviconUrlFor(suggestion: Suggestion): string {
+  return `chrome://favicon2/?size=32&pageUrl=${encodeURIComponent(suggestion.url)}`;
 }

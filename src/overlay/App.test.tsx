@@ -186,6 +186,42 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_HISTORY', query: 'git' });
   });
 
+  it('shows the website favicon for history results', async () => {
+    const { input, sendMessage } = setup((message) => {
+      if (message.type === 'QUERY_HISTORY') {
+        return {
+          type: 'HISTORY',
+          results: [
+            {
+              type: 'history',
+              title: 'GitHub',
+              url: 'https://github.com',
+              visitCount: 3
+            }
+          ]
+        };
+      }
+
+      if (message.type === 'QUERY_FAVICON') {
+        return {
+          type: 'FAVICON',
+          dataUrl: 'data:image/png;base64,AAAA'
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+    fireEvent.input(input, { target: { value: 'git' } });
+    const option = await screen.findByRole('option');
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_FAVICON', pageUrl: 'https://github.com' });
+      expect((option.querySelector('img') as HTMLImageElement).src).toBe('data:image/png;base64,AAAA');
+    });
+  });
+
   it('selects the first history item after the history list refreshes', async () => {
     const { input } = setup((message) => {
       if (message.type === 'QUERY_HISTORY') {
@@ -376,6 +412,42 @@ describe('App', () => {
       expect(sendMessage).toHaveBeenCalledWith({ type: 'OPEN_TAB', tabId: 42 });
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows the website favicon for window tab results', async () => {
+    const { input, sendMessage } = setup((message) => {
+      if (message.type === 'QUERY_TABS') {
+        return {
+          type: 'TABS',
+          results: [
+            {
+              type: 'tab',
+              tabId: 42,
+              windowId: 2,
+              title: 'Project Docs',
+              url: 'https://docs.example.com'
+            }
+          ]
+        };
+      }
+
+      if (message.type === 'QUERY_FAVICON') {
+        return {
+          type: 'FAVICON',
+          dataUrl: 'data:image/png;base64,BBBB'
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab' });
+    const option = await screen.findByRole('option');
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_FAVICON', pageUrl: 'https://docs.example.com' });
+      expect((option.querySelector('img') as HTMLImageElement).src).toBe('data:image/png;base64,BBBB');
+    });
   });
 
   it('uses Ctrl+J and Ctrl+K to move the selected item', async () => {

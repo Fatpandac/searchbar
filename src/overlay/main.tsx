@@ -1,5 +1,5 @@
 import { render } from 'preact';
-import { App } from './App';
+import { App, type Mode } from './App';
 import cssText from './overlay.css?inline';
 
 export type OverlayOptions = {
@@ -24,6 +24,7 @@ const NATIVE_INPUT_EVENT_TYPES = [
   'compositionend',
   'paste'
 ] as const;
+const ESCAPE_BLUR_GRACE_MS = 300;
 
 export function renderOverlay(root: ParentNode, options: OverlayOptions): OverlayHandle {
   const close = closeOnce(options.onClose);
@@ -37,13 +38,44 @@ export function renderOverlay(root: ParentNode, options: OverlayOptions): Overla
   root.appendChild(container);
   containers.set(root, container);
 
-  render(<App onClose={close} />, container);
+  let currentMode: Mode = 'google';
+  let returnToGoogleSignal = 0;
+  const renderApp = () => {
+    render(
+      <App
+        onClose={close}
+        onModeChange={(mode) => {
+          currentMode = mode;
+        }}
+        returnToGoogleSignal={returnToGoogleSignal}
+      />,
+      container
+    );
+  };
+  renderApp();
 
   const input = () => container.querySelector('input');
+  let ignoreBlurUntil = 0;
   const searchInput = input();
   if (searchInput) {
-    searchInput.addEventListener('keydown', (event) => closeOnEscape(event, close), true);
-    searchInput.addEventListener('blur', close, true);
+    searchInput.addEventListener('blur', () => {
+      const shouldIgnoreModeBlur = currentMode === 'history' || currentMode === 'window';
+      if (Date.now() < ignoreBlurUntil || shouldIgnoreModeBlur) {
+        if (shouldIgnoreModeBlur) {
+          returnToGoogleSignal += 1;
+          renderApp();
+        }
+        focus();
+        return;
+      }
+
+      close();
+    }, true);
+    searchInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        ignoreBlurUntil = Date.now() + ESCAPE_BLUR_GRACE_MS;
+      }
+    }, true);
     for (const eventType of NATIVE_INPUT_EVENT_TYPES) {
       searchInput.addEventListener(eventType, stopInputEventPropagation);
     }
@@ -147,18 +179,6 @@ export function destroyOverlay(root: ParentNode): void {
 
 function stopInputEventPropagation(event: Event): void {
   event.stopPropagation();
-}
-
-function closeOnEscape(event: KeyboardEvent, onClose: () => void): void {
-  if (event.key !== 'Escape') {
-    return;
-  }
-
-  if (event.cancelable) {
-    event.preventDefault();
-  }
-  event.stopImmediatePropagation();
-  onClose();
 }
 
 function closeOnce(onClose: () => void): () => void {

@@ -15,16 +15,20 @@ import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 import { getImmediateSearchEngineModeColor } from './mode-color';
 
-type Mode = 'google' | 'history' | 'window' | 'engine';
+export type Mode = 'google' | 'history' | 'window' | 'engine';
 
 export type AppProps = {
   onClose: () => void;
+  onModeChange?: (mode: Mode) => void;
+  returnToGoogleSignal?: number;
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
   loadEngines?: () => Promise<SearchEngine[]>;
 };
 
 export function App({
   onClose,
+  onModeChange,
+  returnToGoogleSignal = 0,
   sendMessage = sendChromeMessage,
   loadEngines = loadSearchEngines
 }: AppProps) {
@@ -41,6 +45,10 @@ export function App({
     setSelectedIndex(0);
     setSuggestions(nextSuggestions);
   };
+  const returnToGoogle = useCallback(() => {
+    setMode('google');
+    setActiveEngine(null);
+  }, []);
   const requestFavicon = useCallback(
     async (pageUrl: string) => {
       const response = await sendMessage({ type: 'QUERY_FAVICON', pageUrl });
@@ -82,6 +90,16 @@ export function App({
   useEffect(() => {
     setSelectedIndex(0);
   }, [mode, query]);
+
+  useEffect(() => {
+    if (returnToGoogleSignal > 0) {
+      returnToGoogle();
+    }
+  }, [returnToGoogle, returnToGoogleSignal]);
+
+  useEffect(() => {
+    onModeChange?.(mode);
+  }, [mode, onModeChange]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -249,6 +267,11 @@ export function App({
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === 'Escape') {
       event.preventDefault();
+      if (mode === 'history' || mode === 'window') {
+        returnToGoogle();
+        return;
+      }
+
       onClose();
       return;
     }

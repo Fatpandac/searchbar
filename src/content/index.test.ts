@@ -142,7 +142,7 @@ describe('createContentController', () => {
     expect(handleKeyboardEvent).toHaveBeenCalledWith(event);
   });
 
-  it('closes directly on page Escape while mounted', () => {
+  it('forwards page Escape while mounted so the overlay can decide whether to close', () => {
     const focusOverlay = vi.fn();
     const handleKeyboardEvent = vi.fn();
     const destroy = vi.fn();
@@ -169,15 +169,15 @@ describe('createContentController', () => {
 
     pageInput.dispatchEvent(event);
 
-    expect(destroy).toHaveBeenCalledTimes(1);
-    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(0);
-    expect(handleKeyboardEvent).not.toHaveBeenCalled();
-    expect(focusOverlay).not.toHaveBeenCalled();
+    expect(destroy).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(1);
+    expect(handleKeyboardEvent).toHaveBeenCalledWith(event);
+    expect(focusOverlay).toHaveBeenCalled();
     expect(preventDefault).toHaveBeenCalled();
     expect(stopImmediatePropagation).toHaveBeenCalled();
   });
 
-  it('closes directly on overlay Escape before the input handles it', () => {
+  it('lets overlay Escape use the native input path', () => {
     const handleKeyboardEvent = vi.fn();
     const destroy = vi.fn();
     let overlayInput: HTMLInputElement | undefined;
@@ -213,11 +213,11 @@ describe('createContentController', () => {
 
     input.dispatchEvent(event);
 
-    expect(destroy).toHaveBeenCalledTimes(1);
-    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(0);
+    expect(destroy).not.toHaveBeenCalled();
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(1);
     expect(handleKeyboardEvent).not.toHaveBeenCalled();
-    expect(preventDefault).toHaveBeenCalled();
-    expect(stopImmediatePropagation).toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(stopImmediatePropagation).not.toHaveBeenCalled();
   });
 
   it('lets keyboard events from inside the overlay shadow root use the native input path', () => {

@@ -1,3 +1,4 @@
+import { waitFor } from '@testing-library/preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderOverlay, destroyOverlay } from './main';
 
@@ -93,7 +94,241 @@ describe('renderOverlay', () => {
     destroyOverlay(root);
   });
 
-  it('closes immediately on native Escape inside the search input', () => {
+  it('lets native Escape inside history search return to Google without closing', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('History');
+    });
+
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true
+    }));
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+
+    destroyOverlay(root);
+  });
+
+  it('ignores the blur that can follow Escape returning from history search', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('History');
+    });
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).not.toHaveBeenCalled();
+
+    destroyOverlay(root);
+  });
+
+  it('ignores blur while history search is active even if Escape keydown is not delivered', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('History');
+    });
+
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+
+    destroyOverlay(root);
+  });
+
+  it('ignores blur while window search is active even if Escape keydown is not delivered', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('Window');
+    });
+
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+
+    destroyOverlay(root);
+  });
+
+  it('ignores a blur fired immediately after Escape before the mode rerender finishes', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('History');
+    });
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+
+    destroyOverlay(root);
+  });
+
+  it('ignores repeated blur events shortly after Escape', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('History');
+    });
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new FocusEvent('blur'));
+    input.dispatchEvent(new FocusEvent('blur'));
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+
+    destroyOverlay(root);
+  });
+
+  it('lets forwarded Escape inside history search return to Google without closing', async () => {
+    const root = document.createElement('div');
+    const onClose = vi.fn();
+    const handle = renderOverlay(root, { onClose });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Tab',
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    input.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    await waitFor(() => {
+      expect(root.textContent).toContain('History');
+    });
+
+    handle.handleKeyboardEvent(
+      new KeyboardEvent('keydown', {
+        key: 'Escape',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+
+    expect(onClose).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(root.textContent).toContain('Google');
+    });
+
+    destroyOverlay(root);
+  });
+
+  it('closes on native Escape inside Google search', () => {
     const root = document.createElement('div');
     const onClose = vi.fn();
     renderOverlay(root, { onClose });
@@ -104,13 +339,11 @@ describe('renderOverlay', () => {
       cancelable: true
     });
     const preventDefault = vi.spyOn(event, 'preventDefault');
-    const stopImmediatePropagation = vi.spyOn(event, 'stopImmediatePropagation');
 
     input.dispatchEvent(event);
 
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(preventDefault).toHaveBeenCalled();
-    expect(stopImmediatePropagation).toHaveBeenCalled();
 
     destroyOverlay(root);
   });

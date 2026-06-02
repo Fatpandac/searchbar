@@ -112,16 +112,6 @@ export function createContentController(options: ContentControllerOptions = {}) 
       isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
 
     if (state) {
-      if (isKeyDown && event.key === 'Escape') {
-        markCapturedInputEvent(event);
-        if (event.cancelable) {
-          event.preventDefault();
-        }
-        event.stopImmediatePropagation();
-        unmount();
-        return;
-      }
-
       if (isEventFromOverlay(event, state.host)) {
         return;
       }

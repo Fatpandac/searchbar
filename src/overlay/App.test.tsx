@@ -493,6 +493,68 @@ describe('App', () => {
     });
   });
 
+  it('returns to Google search on Escape from history search', async () => {
+    const { input, onClose } = setup((message) => {
+      if (message.type === 'QUERY_HISTORY') {
+        return {
+          type: 'HISTORY',
+          results: [
+            {
+              type: 'history',
+              title: 'GitHub',
+              url: 'https://github.com',
+              visitCount: 3
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+    fireEvent.input(input, { target: { value: 'git' } });
+    expect(await screen.findByText('GitHub')).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Google').length).toBeGreaterThan(0);
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('returns to Google search on Escape from window search', async () => {
+    const { input, onClose } = setup((message) => {
+      if (message.type === 'QUERY_TABS') {
+        return {
+          type: 'TABS',
+          results: [
+            {
+              type: 'tab',
+              tabId: 42,
+              windowId: 2,
+              title: 'Project Docs',
+              url: 'https://docs.example.com'
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(await screen.findByText('Project Docs')).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Google').length).toBeGreaterThan(0);
+    });
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('closes on Escape', () => {
     const { input, onClose } = setup(() => ({ type: 'HISTORY', results: [] }));
 

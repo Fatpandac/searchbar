@@ -1,0 +1,212 @@
+:host {
+  color-scheme: light dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.searchbar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  pointer-events: auto;
+}
+
+.searchbar-panel {
+  position: fixed;
+  top: 18vh;
+  left: 50%;
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(560px, calc(100vh - 64px));
+  overflow: hidden;
+  border: 1px solid rgba(20, 20, 24, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 80px rgba(18, 20, 30, 0.25);
+  backdrop-filter: blur(20px);
+  color: #15171d;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px) scale(0.98);
+  filter: blur(4px);
+  transition:
+    opacity 140ms ease,
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.searchbar-panel[data-visible="true"] {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.searchbar-input-wrap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border-bottom: 1px solid rgba(20, 20, 24, 0.1);
+}
+
+.searchbar-mode {
+  min-width: 58px;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #0f6bff;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.searchbar-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 18px;
+  line-height: 28px;
+}
+
+.searchbar-input-wrap input::placeholder {
+  color: rgba(21, 23, 29, 0.46);
+}
+
+.searchbar-list {
+  max-height: 430px;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.searchbar-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  border-radius: 7px;
+  padding: 8px 10px;
+  cursor: default;
+}
+
+.searchbar-item[data-selected="true"] {
+  background: rgba(15, 107, 255, 0.12);
+}
+
+.searchbar-favicon {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(20, 20, 24, 0.08);
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+  overflow: hidden;
+}
+
+.searchbar-favicon img {
+  width: 18px;
+  height: 18px;
+}
+
+.searchbar-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.searchbar-title,
+.searchbar-url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchbar-title {
+  color: #15171d;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.searchbar-url {
+  color: rgba(21, 23, 29, 0.58);
+  font-size: 12px;
+}
+
+.searchbar-type {
+  border-radius: 5px;
+  padding: 4px 6px;
+  background: rgba(20, 20, 24, 0.08);
+  color: rgba(21, 23, 29, 0.68);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.searchbar-empty,
+.searchbar-error {
+  padding: 18px;
+  color: rgba(21, 23, 29, 0.58);
+  font-size: 13px;
+}
+
+.searchbar-error {
+  border-bottom: 1px solid rgba(20, 20, 24, 0.1);
+  color: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  .searchbar-panel {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(28, 30, 36, 0.86);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    color: #f5f7fb;
+  }
+
+  .searchbar-input-wrap {
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .searchbar-input-wrap input::placeholder,
+  .searchbar-empty {
+    color: rgba(245, 247, 251, 0.52);
+  }
+
+  .searchbar-item[data-selected="true"] {
+    background: rgba(70, 142, 255, 0.22);
+  }
+
+  .searchbar-favicon,
+  .searchbar-type {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(245, 247, 251, 0.78);
+  }
+
+  .searchbar-title {
+    color: #f5f7fb;
+  }
+
+  .searchbar-url {
+    color: rgba(245, 247, 251, 0.58);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .searchbar-panel {
+    transition: none;
+    transform: translateX(-50%);
+    filter: none;
+  }
+}

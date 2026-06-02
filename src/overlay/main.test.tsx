@@ -1,0 +1,95 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { renderOverlay, destroyOverlay } from './main';
+
+describe('renderOverlay', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('lets forwarded printable keys update the search input', () => {
+    const root = document.createElement('div');
+    const handle = renderOverlay(root, { onClose: vi.fn() });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    handle.handleKeyboardEvent(
+      new KeyboardEvent('keydown', {
+        key: 'g',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+    handle.handleKeyboardEvent(
+      new KeyboardEvent('keydown', {
+        key: 'h',
+        bubbles: true,
+        cancelable: true
+      })
+    );
+
+    expect(input.value).toBe('gh');
+
+    destroyOverlay(root);
+  });
+
+  it('lets native IME input update the search input through the browser input path', () => {
+    const root = document.createElement('div');
+    const handle = renderOverlay(root, { onClose: vi.fn() });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    input.value = '你好';
+    input.dispatchEvent(new CompositionEvent('compositionend', { data: '你好', bubbles: true }));
+    input.dispatchEvent(new InputEvent('input', { data: '你好', bubbles: true }));
+
+    expect(input.value).toBe('你好');
+
+    destroyOverlay(root);
+  });
+
+  it('ignores composing keydown text', () => {
+    const root = document.createElement('div');
+    const handle = renderOverlay(root, { onClose: vi.fn() });
+    const input = root.querySelector('input') as HTMLInputElement;
+
+    handle.handleKeyboardEvent(
+      new KeyboardEvent('keydown', {
+        key: 'w',
+        bubbles: true,
+        cancelable: true,
+        isComposing: true
+      })
+    );
+    expect(input.value).toBe('');
+
+    destroyOverlay(root);
+  });
+
+  it('keeps native input events from bubbling out of the search input', () => {
+    const root = document.createElement('div');
+    renderOverlay(root, { onClose: vi.fn() });
+    const input = root.querySelector('input') as HTMLInputElement;
+    const bubbled = vi.fn();
+    root.addEventListener('keydown', bubbled);
+    root.addEventListener('keypress', bubbled);
+    root.addEventListener('keyup', bubbled);
+    root.addEventListener('beforeinput', bubbled);
+    root.addEventListener('input', bubbled);
+    root.addEventListener('compositionstart', bubbled);
+    root.addEventListener('compositionupdate', bubbled);
+    root.addEventListener('compositionend', bubbled);
+    root.addEventListener('paste', bubbled);
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keypress', { key: 'w', bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'w', bubbles: true }));
+    input.dispatchEvent(new InputEvent('beforeinput', { data: '我', bubbles: true }));
+    input.dispatchEvent(new InputEvent('input', { data: '我', bubbles: true }));
+    input.dispatchEvent(new CompositionEvent('compositionstart', { data: 'w', bubbles: true }));
+    input.dispatchEvent(new CompositionEvent('compositionupdate', { data: 'wo', bubbles: true }));
+    input.dispatchEvent(new CompositionEvent('compositionend', { data: '我', bubbles: true }));
+    input.dispatchEvent(new Event('paste', { bubbles: true }));
+
+    expect(bubbled).not.toHaveBeenCalled();
+
+    destroyOverlay(root);
+  });
+});

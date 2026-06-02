@@ -230,7 +230,7 @@ export function App({
   const searchBarModeColor =
     mode === 'engine' && activeEngine ? getImmediateSearchEngineModeColor(activeEngine) : undefined;
 
-  const commit = async (suggestion = activeSuggestion) => {
+  const commit = async (suggestion = activeSuggestion, newTab = false) => {
     const fallback = query.trim();
 
     if (!suggestion && !fallback) {
@@ -246,7 +246,8 @@ export function App({
               suggestion?.url ??
               (mode === 'engine' && activeEngine
                 ? createSearchEngineSuggestion(activeEngine, fallback).url
-                : createGoogleSearchSuggestion(fallback).url)
+                : createGoogleSearchSuggestion(fallback).url),
+            newTab
           });
 
     if (response.type === 'ERROR') {
@@ -310,7 +311,7 @@ export function App({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      void commit();
+      void commit(activeSuggestion, event.shiftKey);
     }
   };
 

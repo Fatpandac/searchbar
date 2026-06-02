@@ -13,7 +13,7 @@ type ChromeApi = Pick<typeof chrome, 'history' | 'runtime' | 'tabs' | 'windows' 
 type QueryableTab = chrome.tabs.Tab & { id: number; url: string };
 export type BackgroundChromeApi = {
   history: Pick<typeof chrome.history, 'search'>;
-  tabs: Pick<typeof chrome.tabs, 'query' | 'sendMessage' | 'update'>;
+  tabs: Pick<typeof chrome.tabs, 'query' | 'sendMessage' | 'update' | 'create'>;
   windows: Pick<typeof chrome.windows, 'update'>;
 };
 
@@ -110,6 +110,12 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
       }
 
       if (message.type === 'NAVIGATE') {
+        if (message.newTab) {
+          await chromeApi.tabs.create({ url: message.url });
+          sendResponse({ type: 'NAV_OK' });
+          return;
+        }
+
         const tabId = sender.tab?.id;
 
         if (!tabId) {

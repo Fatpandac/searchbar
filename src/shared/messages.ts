@@ -44,7 +44,7 @@ export type SearchRequest =
   | { type: 'QUERY_HISTORY'; query: string }
   | { type: 'QUERY_GOOGLE_SUGGESTIONS'; query: string }
   | { type: 'QUERY_FAVICON'; pageUrl: string }
-  | { type: 'NAVIGATE'; url: string }
+  | { type: 'NAVIGATE'; url: string; newTab?: boolean }
   | { type: 'OPEN_TAB'; tabId: number }
   | { type: 'TOGGLE' };
 

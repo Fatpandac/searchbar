@@ -1,3 +1,4 @@
+import { Fzf } from 'fzf';
 import type {
   HistoryResult,
   SearchRequest,
@@ -9,6 +10,7 @@ import { createGoogleSearchSuggestion } from '../shared/suggestion';
 
 type SendResponse = (response: SearchResponse) => void;
 type ChromeApi = Pick<typeof chrome, 'history' | 'runtime' | 'tabs' | 'windows' | 'commands'>;
+type QueryableTab = chrome.tabs.Tab & { id: number; url: string };
 export type BackgroundChromeApi = {
   history: Pick<typeof chrome.history, 'search'>;
   tabs: Pick<typeof chrome.tabs, 'query' | 'sendMessage' | 'update'>;
@@ -58,24 +60,15 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
       }
 
       if (message.type === 'QUERY_TABS') {
-        const query = message.query.trim().toLowerCase();
+        const query = message.query.trim();
         const queryInfo =
           typeof sender.tab?.windowId === 'number'
             ? { windowId: sender.tab.windowId }
             : { currentWindow: true };
         const tabs = await chromeApi.tabs.query(queryInfo);
-        const results = tabs
-          .filter((tab): tab is chrome.tabs.Tab & { id: number; url: string } => Boolean(tab.id && tab.url))
-          .filter((tab) => {
-            if (!query) {
-              return true;
-            }
-
-            return (
-              (tab.title ?? '').toLowerCase().includes(query) || tab.url.toLowerCase().includes(query)
-            );
-          })
-          .slice(0, 25)
+        const queryableTabs = tabs
+          .filter((tab): tab is QueryableTab => Boolean(tab.id && tab.url));
+        const results = queryTabs(queryableTabs, query)
           .map<TabResult>((tab) => ({
             type: 'tab',
             tabId: tab.id,
@@ -147,6 +140,18 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
       });
     }
   };
+}
+
+function queryTabs(tabs: QueryableTab[], query: string): QueryableTab[] {
+  if (!query) {
+    return tabs;
+  }
+
+  return new Fzf(tabs, { selector: selectorForTab }).find(query).map((entry) => entry.item);
+}
+
+function selectorForTab(tab: QueryableTab): string {
+  return `${tab.title ?? ''} ${tab.url}`;
 }
 
 async function fetchFaviconPayload(pageUrl: string, signal: AbortSignal): Promise<FaviconPayload | undefined> {

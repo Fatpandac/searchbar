@@ -186,6 +186,61 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_HISTORY', query: 'git' });
   });
 
+  it('selects the first history item after the history list refreshes', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_HISTORY') {
+        return {
+          type: 'HISTORY',
+          results:
+            message.query === 'docs'
+              ? [
+                  {
+                    type: 'history',
+                    title: 'Docs One',
+                    url: 'https://docs-one.example.com',
+                    visitCount: 1
+                  },
+                  {
+                    type: 'history',
+                    title: 'Docs Two',
+                    url: 'https://docs-two.example.com',
+                    visitCount: 1
+                  }
+                ]
+              : [
+                  {
+                    type: 'history',
+                    title: 'Git One',
+                    url: 'https://git-one.example.com',
+                    visitCount: 1
+                  },
+                  {
+                    type: 'history',
+                    title: 'Git Two',
+                    url: 'https://git-two.example.com',
+                    visitCount: 1
+                  }
+                ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+    fireEvent.input(input, { target: { value: 'git' } });
+    expect(await screen.findByText('Git Two')).toBeTruthy();
+
+    fireEvent.pointerEnter(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
+    fireEvent.input(input, { target: { value: 'docs' } });
+    fireEvent.pointerEnter(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
+    expect(await screen.findByText('Docs Two')).toBeTruthy();
+
+    const options = screen.getAllByRole('option');
+    expect(options[0].textContent).toContain('Docs One');
+    expect(options[0].getAttribute('data-selected')).toBe('true');
+  });
+
   it('uses keyword Tab to search GitHub', async () => {
     const { input, sendMessage, onClose } = setup(() => ({ type: 'NAV_OK' }));
 

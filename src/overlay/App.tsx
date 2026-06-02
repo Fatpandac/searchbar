@@ -37,6 +37,10 @@ export function App({
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const replaceSuggestions = (nextSuggestions: Suggestion[]) => {
+    setSelectedIndex(0);
+    setSuggestions(nextSuggestions);
+  };
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true));
@@ -84,7 +88,7 @@ export function App({
           }
 
           if (response.type === 'TABS') {
-            setSuggestions(response.results);
+            replaceSuggestions(response.results);
             setError(null);
           } else if (response.type === 'ERROR') {
             setError(response.message);
@@ -101,7 +105,7 @@ export function App({
     if (mode === 'google') {
       const staticSuggestion = trimmed ? createGoogleSearchSuggestion(trimmed) : null;
       const baseSuggestions = staticSuggestion ? [staticSuggestion] : [];
-      setSuggestions(baseSuggestions);
+      replaceSuggestions(baseSuggestions);
       setError(null);
 
       if (trimmed) {
@@ -112,7 +116,7 @@ export function App({
             }
 
             if (response.type === 'GOOGLE_SUGGESTIONS') {
-              setSuggestions(
+              replaceSuggestions(
                 response.results.length > 0
                   ? dedupeSuggestions(response.results)
                   : baseSuggestions
@@ -136,7 +140,7 @@ export function App({
     }
 
     if (mode === 'engine' && activeEngine) {
-      setSuggestions(trimmed ? [createSearchEngineSuggestion(activeEngine, trimmed)] : []);
+      replaceSuggestions(trimmed ? [createSearchEngineSuggestion(activeEngine, trimmed)] : []);
       setError(null);
 
       return () => {
@@ -145,7 +149,7 @@ export function App({
     }
 
     if (mode === 'history' && !trimmed) {
-      setSuggestions([]);
+      replaceSuggestions([]);
       return () => {
         cancelled = true;
       };
@@ -158,7 +162,7 @@ export function App({
         }
 
         if (response.type === 'HISTORY') {
-          setSuggestions(rankSuggestions(trimmed, response.results));
+          replaceSuggestions(rankSuggestions(trimmed, response.results));
           setError(null);
         } else if (response.type === 'ERROR') {
           setError(response.message);
@@ -232,7 +236,7 @@ export function App({
     setMode('engine');
     setActiveEngine(engine);
     setQuery('');
-    setSuggestions([]);
+    replaceSuggestions([]);
   };
 
   const onKeyDown = (event: KeyboardEvent) => {

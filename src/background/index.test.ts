@@ -56,16 +56,16 @@ describe('createMessageHandler', () => {
     });
   });
 
-  it('queries tabs in the sender window and filters tabs by title or URL', async () => {
+  it('queries tabs in the sender window and fuzzy matches tabs by title or URL', async () => {
     const api = chromeApi();
     api.tabs.query.mockResolvedValue([
-      { id: 1, windowId: 1, title: 'GitHub', url: 'https://github.com' },
+      { id: 1, windowId: 1, title: 'Project Documentation', url: 'https://docs.example.com' },
       { id: 2, windowId: 1, title: 'Docs', url: 'https://example.com' }
     ]);
     const sendResponse = vi.fn();
 
     await createMessageHandler(asBackgroundApi(api))(
-      { type: 'QUERY_TABS', query: 'git' },
+      { type: 'QUERY_TABS', query: 'pjdoc' },
       { tab: { windowId: 4 } as chrome.tabs.Tab },
       sendResponse
     );
@@ -78,11 +78,34 @@ describe('createMessageHandler', () => {
           type: 'tab',
           tabId: 1,
           windowId: 1,
-          title: 'GitHub',
-          url: 'https://github.com'
+          title: 'Project Documentation',
+          url: 'https://docs.example.com'
         }
       ]
     });
+  });
+
+  it('returns all matching tabs without truncating to 25 results', async () => {
+    const api = chromeApi();
+    api.tabs.query.mockResolvedValue(
+      Array.from({ length: 30 }, (_, index) => ({
+        id: index + 1,
+        windowId: 1,
+        title: `Tab ${index + 1}`,
+        url: `https://tab-${index + 1}.example.com`
+      }))
+    );
+    const sendResponse = vi.fn();
+
+    await createMessageHandler(asBackgroundApi(api))(
+      { type: 'QUERY_TABS', query: '' },
+      { tab: { windowId: 4 } as chrome.tabs.Tab },
+      sendResponse
+    );
+
+    const response = sendResponse.mock.calls[0]?.[0];
+    expect(response).toMatchObject({ type: 'TABS' });
+    expect(response.results).toHaveLength(30);
   });
 
   it('queries Google autosuggestions and maps query and navigation results', async () => {

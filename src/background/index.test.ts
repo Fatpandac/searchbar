@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type BackgroundChromeApi, createMessageHandler } from './index';
+import { type BackgroundChromeApi, createMessageHandler, findIconHref } from './index';
 
 const chromeApi = () => ({
   history: {
@@ -122,6 +122,67 @@ describe('createMessageHandler', () => {
         }
       ]
     });
+  });
+
+  it('fetches a favicon data url for a page origin', async () => {
+    const api = chromeApi();
+    const sendResponse = vi.fn();
+    const fetchFavicon = vi.fn().mockResolvedValue({
+      dataUrl: 'data:image/png;base64,AAAA',
+      url: 'https://github.com/favicon.ico'
+    });
+
+    await createMessageHandler(asBackgroundApi(api), { fetchFavicon })(
+      { type: 'QUERY_FAVICON', pageUrl: 'https://github.com' },
+      {},
+      sendResponse
+    );
+
+    expect(fetchFavicon).toHaveBeenCalledWith('https://github.com', expect.any(AbortSignal));
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'FAVICON',
+      dataUrl: 'data:image/png;base64,AAAA',
+      url: 'https://github.com/favicon.ico'
+    });
+  });
+
+  it('uses the fast favicon endpoint before discovering icons from page html', async () => {
+    const api = chromeApi();
+    const sendResponse = vi.fn();
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      headers: new Headers({ 'content-type': 'image/png' }),
+      arrayBuffer: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer)
+    });
+    vi.stubGlobal('fetch', fetch);
+
+    await createMessageHandler(asBackgroundApi(api))(
+      { type: 'QUERY_FAVICON', pageUrl: 'https://github.com' },
+      {},
+      sendResponse
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith(
+      `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent('https://github.com')}&sz=64`,
+      expect.objectContaining({ method: 'GET' })
+    );
+    expect(sendResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'FAVICON',
+        dataUrl: 'data:image/png;base64,AQID'
+      })
+    );
+  });
+
+  it('extracts icon hrefs from page html', () => {
+    expect(
+      findIconHref(`
+        <link rel="preconnect" href="https://assets.example.com">
+        <link href="/apple.png" rel="apple-touch-icon">
+        <link rel="icon" type="image/png" href="/favicon.png">
+      `)
+    ).toBe('/favicon.png');
   });
 
   it('navigates the sender tab when no tab id is supplied', async () => {

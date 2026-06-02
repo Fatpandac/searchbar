@@ -43,6 +43,7 @@ export type SearchRequest =
   | { type: 'QUERY_TABS'; query: string }
   | { type: 'QUERY_HISTORY'; query: string }
   | { type: 'QUERY_GOOGLE_SUGGESTIONS'; query: string }
+  | { type: 'QUERY_FAVICON'; pageUrl: string }
   | { type: 'NAVIGATE'; url: string }
   | { type: 'OPEN_TAB'; tabId: number }
   | { type: 'TOGGLE' };
@@ -51,5 +52,6 @@ export type SearchResponse =
   | { type: 'TABS'; results: TabResult[] }
   | { type: 'HISTORY'; results: HistoryResult[] }
   | { type: 'GOOGLE_SUGGESTIONS'; results: SearchResult[] }
+  | { type: 'FAVICON'; dataUrl?: string; url?: string }
   | { type: 'NAV_OK' }
   | { type: 'ERROR'; message: string };

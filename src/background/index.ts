@@ -17,10 +17,17 @@ export type BackgroundChromeApi = {
 
 type MessageHandlerOptions = {
   fetchGoogleSuggestions?: (query: string, signal: AbortSignal) => Promise<unknown>;
+  fetchFavicon?: (pageUrl: string, signal: AbortSignal) => Promise<FaviconPayload | undefined>;
+};
+
+type FaviconPayload = {
+  dataUrl: string;
+  url: string;
 };
 
 export function createMessageHandler(chromeApi: BackgroundChromeApi, options: MessageHandlerOptions = {}) {
   const fetchGoogleSuggestions = options.fetchGoogleSuggestions ?? fetchGoogleSuggestPayload;
+  const fetchFavicon = options.fetchFavicon ?? fetchFaviconPayload;
 
   return async (
     message: SearchRequest,
@@ -98,6 +105,17 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
         return;
       }
 
+      if (message.type === 'QUERY_FAVICON') {
+        const abortController = new AbortController();
+        const favicon = await fetchFavicon(message.pageUrl, abortController.signal);
+        sendResponse({
+          type: 'FAVICON',
+          dataUrl: favicon?.dataUrl,
+          url: favicon?.url
+        });
+        return;
+      }
+
       if (message.type === 'NAVIGATE') {
         const tabId = sender.tab?.id;
 
@@ -129,6 +147,160 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
       });
     }
   };
+}
+
+async function fetchFaviconPayload(pageUrl: string, signal: AbortSignal): Promise<FaviconPayload | undefined> {
+  const origin = getOrigin(pageUrl);
+  if (!origin) {
+    return undefined;
+  }
+
+  const candidates = [createFastFaviconUrl(origin), new URL('/favicon.ico', origin).href].filter(
+    (url): url is string => Boolean(url)
+  );
+  const seen = new Set<string>();
+
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) {
+      continue;
+    }
+
+    seen.add(candidate);
+    const dataUrl = await fetchImageAsDataUrl(candidate, signal);
+    if (dataUrl) {
+      return { dataUrl, url: candidate };
+    }
+  }
+
+  const discoveredUrl = await discoverFaviconUrl(origin, signal);
+  if (discoveredUrl && !seen.has(discoveredUrl)) {
+    const dataUrl = await fetchImageAsDataUrl(discoveredUrl, signal);
+    if (dataUrl) {
+      return { dataUrl, url: discoveredUrl };
+    }
+  }
+
+  return undefined;
+}
+
+function createFastFaviconUrl(origin: string): string {
+  return `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(origin)}&sz=64`;
+}
+
+async function discoverFaviconUrl(origin: string, signal: AbortSignal): Promise<string | undefined> {
+  try {
+    const response = await fetch(origin, { method: 'GET', signal });
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const iconHref = findIconHref(await response.text());
+    return iconHref ? new URL(iconHref, origin).href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function findIconHref(html: string): string | undefined {
+  const links = html.match(/<link\b[^>]*>/gi) ?? [];
+  const iconLinks = links
+    .map((link) => ({
+      rel: getHtmlAttribute(link, 'rel')?.toLowerCase() ?? '',
+      href: getHtmlAttribute(link, 'href')
+    }))
+    .filter((link): link is { rel: string; href: string } => Boolean(link.href && link.rel.includes('icon')));
+
+  return (
+    iconLinks.find((link) => link.rel.split(/\s+/).includes('icon'))?.href ??
+    iconLinks.find((link) => link.rel.includes('shortcut'))?.href ??
+    iconLinks[0]?.href
+  );
+}
+
+function getHtmlAttribute(tag: string, name: string): string | undefined {
+  const match = tag.match(new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
+  return decodeHtmlAttribute(match?.[1] ?? match?.[2] ?? match?.[3]);
+}
+
+function decodeHtmlAttribute(value: string | undefined): string | undefined {
+  return value
+    ?.replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+async function fetchImageAsDataUrl(url: string, signal: AbortSignal): Promise<string | undefined> {
+  try {
+    const response = await fetch(url, { method: 'GET', signal });
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const headerContentType = response.headers.get('content-type')?.split(';')[0]?.trim();
+    const contentType =
+      !headerContentType || headerContentType === 'application/octet-stream'
+        ? inferImageMimeType(url)
+        : headerContentType;
+
+    if (!contentType.startsWith('image/')) {
+      return undefined;
+    }
+
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    return `data:${contentType};base64,${uint8ToBase64(bytes)}`;
+  } catch {
+    return undefined;
+  }
+}
+
+function inferImageMimeType(url: string): string {
+  const pathname = getUrlPathname(url).toLowerCase();
+  if (pathname.endsWith('.png')) {
+    return 'image/png';
+  }
+
+  if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) {
+    return 'image/jpeg';
+  }
+
+  if (pathname.endsWith('.svg')) {
+    return 'image/svg+xml';
+  }
+
+  if (pathname.endsWith('.webp')) {
+    return 'image/webp';
+  }
+
+  return 'image/x-icon';
+}
+
+function getUrlPathname(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return '';
+  }
+}
+
+function getOrigin(url: string): string | undefined {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return undefined;
+  }
+}
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+  }
+
+  return btoa(binary);
 }
 
 async function fetchGoogleSuggestPayload(query: string, signal: AbortSignal): Promise<unknown> {

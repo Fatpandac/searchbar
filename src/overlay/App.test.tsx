@@ -232,6 +232,30 @@ describe('App', () => {
     });
   });
 
+  it('shows a built-in quicksearch mode color before favicon extraction finishes', async () => {
+    const resolveModeColor = vi.fn(
+      () =>
+        new Promise<string | undefined>(() => {
+          // Keep the async favicon color pending so the test only observes the immediate color.
+        })
+    );
+
+    render(
+      <App
+        sendMessage={vi.fn(() => Promise.resolve({ type: 'NAV_OK' as const }))}
+        onClose={vi.fn()}
+        resolveModeColor={resolveModeColor}
+      />
+    );
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+
+    fireEvent.input(input, { target: { value: 'gh' } });
+    fireEvent.keyDown(input, { key: 'Tab' });
+
+    const mode = await screen.findByText('GitHub');
+    expect((mode as HTMLElement).style.background).toBe('rgb(36, 41, 47)');
+  });
+
   it('shows a shortcut hint inside the input without adding a list item', async () => {
     const { input } = setup(() => ({ type: 'NAV_OK' }));
 

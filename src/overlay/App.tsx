@@ -13,7 +13,7 @@ import {
 import { loadSearchEngines } from '../shared/search-engine-storage';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
-import { resolveSearchEngineModeColor } from './mode-color';
+import { getImmediateSearchEngineModeColor, resolveSearchEngineModeColor } from './mode-color';
 
 type Mode = 'google' | 'history' | 'window' | 'engine';
 
@@ -222,6 +222,8 @@ export function App({
 
     return query.trim() ? 'No Google search available' : 'Start typing to search Google';
   }, [activeEngine, mode, query]);
+  const searchBarModeColor =
+    mode === 'engine' && activeEngine ? modeColor ?? getImmediateSearchEngineModeColor(activeEngine) : undefined;
 
   const commit = async (suggestion = activeSuggestion) => {
     const fallback = query.trim();
@@ -314,7 +316,7 @@ export function App({
         <SearchBar
           query={query}
           modeLabel={modeLabel}
-          modeColor={modeColor}
+          modeColor={searchBarModeColor}
           hint={inputHint}
           inputRef={inputRef}
           onInput={setQuery}

@@ -63,7 +63,7 @@ function typeLabel(suggestion: Suggestion): string {
   }
 
   if (suggestion.type === 'search') {
-    return 'Google';
+    return suggestion.provider || 'Google';
   }
 
   return 'History';

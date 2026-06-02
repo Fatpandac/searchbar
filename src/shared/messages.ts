@@ -34,6 +34,7 @@ export type SearchResult = {
   title: string;
   url: string;
   description?: string;
+  provider?: string;
 };
 
 export type Suggestion = HistoryResult | TabResult | ChromePageResult | GoToResult | SearchResult;

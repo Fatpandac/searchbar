@@ -1,29 +1,56 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { SearchRequest, SearchResponse, Suggestion } from '../shared/messages';
-import { createGoogleSearchSuggestion, rankSuggestions } from '../shared/suggestion';
+import {
+  findSearchEngineShortcut,
+  SEARCH_ENGINES,
+  type SearchEngine
+} from '../shared/search-engines';
+import {
+  createGoogleSearchSuggestion,
+  createSearchEngineSuggestion,
+  rankSuggestions
+} from '../shared/suggestion';
+import { loadSearchEngines } from '../shared/search-engine-storage';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 
-type Mode = 'google' | 'history' | 'window';
+type Mode = 'google' | 'history' | 'window' | 'engine';
 
 export type AppProps = {
   onClose: () => void;
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
+  loadEngines?: () => Promise<SearchEngine[]>;
 };
 
-export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
+export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = loadSearchEngines }: AppProps) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('google');
+  const [engines, setEngines] = useState<SearchEngine[]>(SEARCH_ENGINES);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadEngines().then((nextEngines) => {
+      if (!cancelled) {
+        setEngines(nextEngines);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadEngines]);
 
   useEffect(() => {
     focusInput(inputRef.current);
@@ -68,7 +95,8 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
 
     if (mode === 'google') {
       const staticSuggestion = trimmed ? createGoogleSearchSuggestion(trimmed) : null;
-      setSuggestions(staticSuggestion ? [staticSuggestion] : []);
+      const baseSuggestions = staticSuggestion ? [staticSuggestion] : [];
+      setSuggestions(baseSuggestions);
       setError(null);
 
       if (trimmed) {
@@ -79,7 +107,7 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
             }
 
             if (response.type === 'GOOGLE_SUGGESTIONS') {
-              setSuggestions(dedupeSuggestions(staticSuggestion ? [staticSuggestion, ...response.results] : response.results));
+              setSuggestions(dedupeSuggestions([...baseSuggestions, ...response.results]));
               setError(null);
             } else if (response.type === 'ERROR') {
               setError(response.message);
@@ -92,6 +120,15 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
           window.clearTimeout(timer);
         };
       }
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (mode === 'engine' && activeEngine) {
+      setSuggestions(trimmed ? [createSearchEngineSuggestion(activeEngine, trimmed)] : []);
+      setError(null);
 
       return () => {
         cancelled = true;
@@ -124,10 +161,19 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [mode, query, sendMessage]);
+  }, [activeEngine, mode, query, sendMessage]);
 
   const activeSuggestion = suggestions[selectedIndex];
-  const modeLabel = mode === 'window' ? 'Window' : mode === 'history' ? 'History' : 'Google';
+  const shortcutEngine = mode === 'google' ? findSearchEngineShortcut(query, engines) : undefined;
+  const inputHint = shortcutEngine ? `Tab 搜索 ${shortcutEngine.name}` : undefined;
+  const modeLabel =
+    mode === 'window'
+      ? 'Window'
+      : mode === 'history'
+        ? 'History'
+        : mode === 'engine' && activeEngine
+          ? activeEngine.name
+          : 'Google';
   const emptyLabel = useMemo(() => {
     if (mode === 'window') {
       return 'No tabs found in this window';
@@ -137,8 +183,12 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
       return query.trim() ? 'No history found' : 'Start typing to search history';
     }
 
+    if (mode === 'engine' && activeEngine) {
+      return query.trim() ? `No ${activeEngine.name} search available` : `Start typing to search ${activeEngine.name}`;
+    }
+
     return query.trim() ? 'No Google search available' : 'Start typing to search Google';
-  }, [mode, query]);
+  }, [activeEngine, mode, query]);
 
   const commit = async (suggestion = activeSuggestion) => {
     const fallback = query.trim();
@@ -152,7 +202,11 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
         ? await sendMessage({ type: 'OPEN_TAB', tabId: suggestion.tabId })
         : await sendMessage({
             type: 'NAVIGATE',
-            url: suggestion?.url ?? createGoogleSearchSuggestion(fallback).url
+            url:
+              suggestion?.url ??
+              (mode === 'engine' && activeEngine
+                ? createSearchEngineSuggestion(activeEngine, fallback).url
+                : createGoogleSearchSuggestion(fallback).url)
           });
 
     if (response.type === 'ERROR') {
@@ -161,6 +215,13 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
     }
 
     onClose();
+  };
+
+  const activateEngine = (engine: SearchEngine) => {
+    setMode('engine');
+    setActiveEngine(engine);
+    setQuery('');
+    setSuggestions([]);
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -173,12 +234,20 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
     if (event.key === 'Tab' && event.shiftKey) {
       event.preventDefault();
       setMode('history');
+      setActiveEngine(null);
       return;
     }
 
     if (event.key === 'Tab') {
       event.preventDefault();
+      const engine = findSearchEngineShortcut(query, engines);
+      if (engine) {
+        activateEngine(engine);
+        return;
+      }
+
       setMode('window');
+      setActiveEngine(null);
       return;
     }
 
@@ -212,6 +281,7 @@ export function App({ onClose, sendMessage = sendChromeMessage }: AppProps) {
         <SearchBar
           query={query}
           modeLabel={modeLabel}
+          hint={inputHint}
           inputRef={inputRef}
           onInput={setQuery}
           onKeyDown={onKeyDown}

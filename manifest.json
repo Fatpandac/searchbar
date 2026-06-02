@@ -9,6 +9,7 @@
     "service_worker": "src/background/index.ts",
     "type": "module"
   },
+  "options_page": "src/options/index.html",
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*", "file://*/*"],

@@ -1,4 +1,5 @@
 import type { GoToResult, SearchResult, Suggestion } from './messages';
+import { createSearchEngineUrl, type SearchEngine } from './search-engines';
 
 const TRACKING_PARAMS = [/^utm_/i, /^fbclid$/i, /^gclid$/i, /^mc_/i];
 const URL_LIKE_PATTERN =
@@ -53,7 +54,19 @@ export function createGoogleSearchSuggestion(query: string): SearchResult {
   };
 }
 
-export function rankSuggestions(query: string, suggestions: Suggestion[]): Suggestion[] {
+export function createSearchEngineSuggestion(engine: SearchEngine, query: string): SearchResult {
+  const trimmed = query.trim();
+
+  return {
+    type: 'search',
+    title: trimmed,
+    description: `Search ${engine.name}`,
+    provider: engine.name,
+    url: createSearchEngineUrl(engine, trimmed)
+  };
+}
+
+export function rankSuggestions<T extends Suggestion>(query: string, suggestions: T[]): T[] {
   const needle = query.trim().toLowerCase();
   const seen = new Set<string>();
 

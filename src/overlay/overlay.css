@@ -64,6 +64,14 @@
   text-align: center;
 }
 
+.searchbar-input-slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .searchbar-input-wrap input {
   width: 100%;
   min-width: 0;
@@ -74,6 +82,18 @@
   font: inherit;
   font-size: 18px;
   line-height: 28px;
+}
+
+.searchbar-input-hint {
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  color: rgba(21, 23, 29, 0.44);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .searchbar-input-wrap input::placeholder {
@@ -180,6 +200,7 @@
   }
 
   .searchbar-input-wrap input::placeholder,
+  .searchbar-input-hint,
   .searchbar-empty {
     color: rgba(245, 247, 251, 0.52);
   }

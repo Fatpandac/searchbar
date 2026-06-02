@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "SearchBar",
+  "version": "0.1.0",
+  "description": "Command-palette-style search bar for Chrome.",
+  "permissions": ["tabs", "history", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*", "file://*/*"],
+      "js": ["src/content/index.ts"],
+      "run_at": "document_start"
+    }
+  ],
+  "commands": {
+    "toggle-searchbar": {
+      "suggested_key": {
+        "default": "Ctrl+K",
+        "mac": "Command+K"
+      },
+      "description": "Toggle SearchBar"
+    }
+  }
+}

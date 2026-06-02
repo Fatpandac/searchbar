@@ -107,7 +107,11 @@ export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = lo
             }
 
             if (response.type === 'GOOGLE_SUGGESTIONS') {
-              setSuggestions(dedupeSuggestions([...baseSuggestions, ...response.results]));
+              setSuggestions(
+                response.results.length > 0
+                  ? dedupeSuggestions(response.results)
+                  : baseSuggestions
+              );
               setError(null);
             } else if (response.type === 'ERROR') {
               setError(response.message);

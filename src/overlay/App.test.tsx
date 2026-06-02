@@ -105,6 +105,37 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: 'react' });
   });
 
+  it('selects the first returned Google suggestion after autosuggestions load', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'react hooks',
+              url: 'https://www.google.com/search?q=react+hooks'
+            },
+            {
+              type: 'search',
+              title: 'react query',
+              url: 'https://www.google.com/search?q=react+query'
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'react' } });
+    expect(await screen.findByText('react query')).toBeTruthy();
+
+    const options = screen.getAllByRole('option');
+    expect(options[0].textContent).toContain('react hooks');
+    expect(options[0].getAttribute('data-selected')).toBe('true');
+  });
+
   it('keeps focus in the search input when pressing a suggestion', async () => {
     const { input } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {

@@ -13,6 +13,7 @@ import {
 import { loadSearchEngines } from '../shared/search-engine-storage';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
+import { resolveSearchEngineModeColor } from './mode-color';
 
 type Mode = 'google' | 'history' | 'window' | 'engine';
 
@@ -20,9 +21,15 @@ export type AppProps = {
   onClose: () => void;
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
   loadEngines?: () => Promise<SearchEngine[]>;
+  resolveModeColor?: (engine: SearchEngine | null) => Promise<string | undefined>;
 };
 
-export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = loadSearchEngines }: AppProps) {
+export function App({
+  onClose,
+  sendMessage = sendChromeMessage,
+  loadEngines = loadSearchEngines,
+  resolveModeColor = resolveSearchEngineModeColor
+}: AppProps) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('google');
   const [engines, setEngines] = useState<SearchEngine[]>(SEARCH_ENGINES);
@@ -31,6 +38,7 @@ export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = lo
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
+  const [modeColor, setModeColor] = useState<string | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -66,6 +74,27 @@ export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = lo
   useEffect(() => {
     setSelectedIndex(0);
   }, [mode, query]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (mode !== 'engine' || !activeEngine) {
+      setModeColor(undefined);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void resolveModeColor(activeEngine).then((color) => {
+      if (!cancelled) {
+        setModeColor(color);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEngine, mode, resolveModeColor]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -255,13 +284,13 @@ export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = lo
       return;
     }
 
-    if (event.key === 'ArrowDown') {
+    if (isMoveDownKey(event)) {
       event.preventDefault();
       setSelectedIndex((current) => wrapIndex(current + 1, suggestions.length));
       return;
     }
 
-    if (event.key === 'ArrowUp') {
+    if (isMoveUpKey(event)) {
       event.preventDefault();
       setSelectedIndex((current) => wrapIndex(current - 1, suggestions.length));
       return;
@@ -285,6 +314,7 @@ export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = lo
         <SearchBar
           query={query}
           modeLabel={modeLabel}
+          modeColor={modeColor}
           hint={inputHint}
           inputRef={inputRef}
           onInput={setQuery}
@@ -301,6 +331,14 @@ export function App({ onClose, sendMessage = sendChromeMessage, loadEngines = lo
       </section>
     </div>
   );
+}
+
+function isMoveDownKey(event: KeyboardEvent): boolean {
+  return event.key === 'ArrowDown' || (event.ctrlKey && event.key.toLowerCase() === 'j');
+}
+
+function isMoveUpKey(event: KeyboardEvent): boolean {
+  return event.key === 'ArrowUp' || (event.ctrlKey && event.key.toLowerCase() === 'k');
 }
 
 function focusInput(input: HTMLInputElement | null): void {

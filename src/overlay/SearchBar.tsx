@@ -3,16 +3,19 @@ import type { Ref } from 'preact';
 type SearchBarProps = {
   query: string;
   modeLabel: string;
+  modeColor?: string;
   hint?: string;
   inputRef?: Ref<HTMLInputElement>;
   onInput: (query: string) => void;
   onKeyDown: (event: KeyboardEvent) => void;
 };
 
-export function SearchBar({ query, modeLabel, hint, inputRef, onInput, onKeyDown }: SearchBarProps) {
+export function SearchBar({ query, modeLabel, modeColor, hint, inputRef, onInput, onKeyDown }: SearchBarProps) {
   return (
     <label className="searchbar-input-wrap">
-      <span className="searchbar-mode">{modeLabel}</span>
+      <span className="searchbar-mode" style={modeColor ? { background: modeColor } : undefined}>
+        {modeLabel}
+      </span>
       <span className="searchbar-input-slot">
         <input
           ref={inputRef}

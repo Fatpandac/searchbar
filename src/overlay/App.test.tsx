@@ -208,6 +208,30 @@ describe('App', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('uses the active quicksearch favicon color for the mode badge', async () => {
+    const resolveModeColor = vi.fn(() => Promise.resolve('rgb(36, 41, 47)'));
+
+    render(
+      <App
+        sendMessage={vi.fn(() => Promise.resolve({ type: 'NAV_OK' as const }))}
+        onClose={vi.fn()}
+        resolveModeColor={resolveModeColor}
+      />
+    );
+    const nextInput = screen.getByRole('combobox') as HTMLInputElement;
+
+    fireEvent.input(nextInput, { target: { value: 'gh' } });
+    fireEvent.keyDown(nextInput, { key: 'Tab' });
+
+    const mode = await screen.findByText('GitHub');
+    await waitFor(() => {
+      expect(resolveModeColor).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'github', name: 'GitHub' })
+      );
+      expect((mode as HTMLElement).style.background).toBe('rgb(36, 41, 47)');
+    });
+  });
+
   it('shows a shortcut hint inside the input without adding a list item', async () => {
     const { input } = setup(() => ({ type: 'NAV_OK' }));
 
@@ -297,6 +321,49 @@ describe('App', () => {
       expect(sendMessage).toHaveBeenCalledWith({ type: 'OPEN_TAB', tabId: 42 });
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('uses Ctrl+J and Ctrl+K to move the selected item', async () => {
+    const { input, sendMessage } = setup((message) => {
+      if (message.type === 'QUERY_TABS') {
+        return {
+          type: 'TABS',
+          results: [
+            {
+              type: 'tab',
+              tabId: 1,
+              title: 'First Tab',
+              url: 'https://first.example.com'
+            },
+            {
+              type: 'tab',
+              tabId: 2,
+              title: 'Second Tab',
+              url: 'https://second.example.com'
+            }
+          ]
+        };
+      }
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(await screen.findByText('Second Tab')).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'j', ctrlKey: true });
+    let options = screen.getAllByRole('option');
+    expect(options[1].getAttribute('data-selected')).toBe('true');
+
+    fireEvent.keyDown(input, { key: 'k', ctrlKey: true });
+    options = screen.getAllByRole('option');
+    expect(options[0].getAttribute('data-selected')).toBe('true');
+
+    fireEvent.keyDown(input, { key: 'j', ctrlKey: true });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'OPEN_TAB', tabId: 2 });
+    });
   });
 
   it('closes on Escape', () => {

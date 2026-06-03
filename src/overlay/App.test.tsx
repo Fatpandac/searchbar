@@ -71,6 +71,42 @@ describe('App', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('lets composing Enter confirm IME text instead of committing the selected suggestion', async () => {
+    const { input, sendMessage, onClose } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'ni hao',
+              url: 'https://www.google.com/search?q=ni+hao'
+            }
+          ]
+        };
+      }
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'ni' } });
+    expect(await screen.findByText('ni hao')).toBeTruthy();
+    sendMessage.mockClear();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      bubbles: true,
+      cancelable: true,
+      isComposing: true
+    });
+    const preventDefault = vi.spyOn(event, 'preventDefault');
+
+    input.dispatchEvent(event);
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('shows Google autosuggestions in default search mode', async () => {
     const { input, sendMessage } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {

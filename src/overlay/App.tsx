@@ -247,7 +247,7 @@ export function App({
               (mode === 'engine' && activeEngine
                 ? createSearchEngineSuggestion(activeEngine, fallback).url
                 : createGoogleSearchSuggestion(fallback).url),
-            newTab
+            ...(newTab ? { newTab: true } : {})
           });
 
     if (response.type === 'ERROR') {
@@ -266,6 +266,10 @@ export function App({
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (isComposingKey(event)) {
+      return;
+    }
+
     if (event.key === 'Escape') {
       event.preventDefault();
       if (mode === 'history' || mode === 'window') {
@@ -353,6 +357,10 @@ function isMoveDownKey(event: KeyboardEvent): boolean {
 
 function isMoveUpKey(event: KeyboardEvent): boolean {
   return event.key === 'ArrowUp' || (event.ctrlKey && event.key.toLowerCase() === 'k');
+}
+
+function isComposingKey(event: KeyboardEvent): boolean {
+  return event.isComposing || event.key === 'Process' || event.keyCode === 229;
 }
 
 function focusInput(input: HTMLInputElement | null): void {

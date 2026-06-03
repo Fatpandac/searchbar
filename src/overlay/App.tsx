@@ -17,6 +17,8 @@ import { getImmediateSearchEngineModeColor } from './mode-color';
 
 export type Mode = 'google' | 'history' | 'window' | 'engine';
 
+const GOOGLE_MODE_HISTORY_LIMIT = 5;
+
 export type AppProps = {
   onClose: () => void;
   onModeChange?: (mode: Mode) => void;
@@ -135,20 +137,28 @@ export function App({
 
       if (trimmed) {
         const timer = window.setTimeout(() => {
-          void sendMessage({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: trimmed }).then((response) => {
+          void Promise.all([
+            sendMessage({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: trimmed }),
+            sendMessage({ type: 'QUERY_HISTORY', query: trimmed })
+          ]).then(([googleResponse, historyResponse]) => {
             if (cancelled) {
               return;
             }
 
-            if (response.type === 'GOOGLE_SUGGESTIONS') {
-              replaceSuggestions(
-                response.results.length > 0
-                  ? dedupeSuggestions(response.results)
-                  : baseSuggestions
-              );
+            const googleSuggestions =
+              googleResponse.type === 'GOOGLE_SUGGESTIONS' ? googleResponse.results : [];
+            const historySuggestions =
+              historyResponse.type === 'HISTORY'
+                ? rankSuggestions(trimmed, historyResponse.results).slice(0, GOOGLE_MODE_HISTORY_LIMIT)
+                : [];
+
+            if (googleResponse.type === 'GOOGLE_SUGGESTIONS' || historyResponse.type === 'HISTORY') {
+              replaceSuggestions(mergeGoogleModeSuggestions(baseSuggestions, googleSuggestions, historySuggestions));
               setError(null);
-            } else if (response.type === 'ERROR') {
-              setError(response.message);
+            } else if (googleResponse.type === 'ERROR') {
+              setError(googleResponse.message);
+            } else if (historyResponse.type === 'ERROR') {
+              setError(historyResponse.message);
             }
           });
         }, 80);
@@ -395,4 +405,14 @@ function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
     seen.add(key);
     return true;
   });
+}
+
+function mergeGoogleModeSuggestions(
+  baseSuggestions: Suggestion[],
+  googleSuggestions: Suggestion[],
+  historySuggestions: Suggestion[]
+): Suggestion[] {
+  const primarySuggestions = googleSuggestions.length > 0 ? googleSuggestions : baseSuggestions;
+
+  return dedupeSuggestions([...historySuggestions, ...primarySuggestions]).slice(0, 10);
 }

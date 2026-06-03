@@ -141,6 +141,103 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: 'react' });
   });
 
+  it('shows matching history entries together with Google autosuggestions in default search mode', async () => {
+    const { input, sendMessage } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'react hooks',
+              url: 'https://www.google.com/search?q=react+hooks'
+            }
+          ]
+        };
+      }
+
+      if (message.type === 'QUERY_HISTORY') {
+        return {
+          type: 'HISTORY',
+          results: [
+            {
+              type: 'history',
+              title: 'React Router Docs',
+              url: 'https://reactrouter.com',
+              visitCount: 4
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'react' } });
+
+    expect(await screen.findByText('react hooks')).toBeTruthy();
+    const historyOption = await screen.findByText('React Router Docs');
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: 'react' });
+    expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_HISTORY', query: 'react' });
+
+    const options = screen.getAllByRole('option');
+    expect(options[0].textContent).toContain('React Router Docs');
+    expect(options[1].textContent).toContain('react hooks');
+
+    fireEvent.pointerEnter(historyOption.closest('[role="option"]') as HTMLElement);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'https://reactrouter.com'
+      });
+    });
+  });
+
+  it('shows only the five best matching history entries in default search mode', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'react hooks',
+              url: 'https://www.google.com/search?q=react+hooks'
+            }
+          ]
+        };
+      }
+
+      if (message.type === 'QUERY_HISTORY') {
+        return {
+          type: 'HISTORY',
+          results: [
+            { type: 'history', title: 'React Alpha', url: 'https://alpha.example.com', visitCount: 1 },
+            { type: 'history', title: 'React Beta', url: 'https://beta.example.com', visitCount: 1 },
+            { type: 'history', title: 'React Gamma', url: 'https://gamma.example.com', visitCount: 1 },
+            { type: 'history', title: 'React Delta', url: 'https://delta.example.com', visitCount: 1 },
+            { type: 'history', title: 'React Epsilon', url: 'https://epsilon.example.com', visitCount: 1 },
+            { type: 'history', title: 'React Zeta', url: 'https://zeta.example.com', visitCount: 1 }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'react' } });
+
+    expect(await screen.findByText('React Epsilon')).toBeTruthy();
+    expect(screen.queryByText('React Zeta')).toBeNull();
+    expect(await screen.findByText('react hooks')).toBeTruthy();
+
+    const options = screen.getAllByRole('option');
+    expect(options.filter((option) => option.textContent?.includes('History'))).toHaveLength(5);
+    expect(options[5].textContent).toContain('react hooks');
+  });
+
   it('selects the first returned Google suggestion after autosuggestions load', async () => {
     const { input } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {

@@ -275,6 +275,13 @@ export function App({
     replaceSuggestions([]);
   };
 
+  const handleInput = (nextQuery: string) => {
+    if (nextQuery !== query) {
+      setSelectedIndex(0);
+    }
+    setQuery(nextQuery);
+  };
+
   const onKeyDown = (event: KeyboardEvent) => {
     if (isComposingKey(event)) {
       return;
@@ -344,7 +351,7 @@ export function App({
           modeColor={searchBarModeColor}
           hint={inputHint}
           inputRef={inputRef}
-          onInput={setQuery}
+          onInput={handleInput}
           onKeyDown={onKeyDown}
         />
         {error ? <div className="searchbar-error">{error}</div> : null}

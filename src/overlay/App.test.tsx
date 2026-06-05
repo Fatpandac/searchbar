@@ -626,6 +626,79 @@ describe('App', () => {
     });
   });
 
+  it('resets the selected item immediately after the search content changes', async () => {
+    const { input, sendMessage } = setup((message) => {
+      if (message.type === 'QUERY_TABS') {
+        return {
+          type: 'TABS',
+          results: [
+            {
+              type: 'tab',
+              tabId: 1,
+              title: 'First Tab',
+              url: 'https://first.example.com'
+            },
+            {
+              type: 'tab',
+              tabId: 2,
+              title: 'Second Tab',
+              url: 'https://second.example.com'
+            }
+          ]
+        };
+      }
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'first' } });
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(await screen.findByText('Second Tab')).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option')[1].getAttribute('data-selected')).toBe('true');
+
+    fireEvent.input(input, { target: { value: 'first changed' } });
+
+    expect(screen.getAllByRole('option')[0].getAttribute('data-selected')).toBe('true');
+    expect(sendMessage).not.toHaveBeenCalledWith({ type: 'OPEN_TAB', tabId: 2 });
+  });
+
+  it('keeps the selected item when an input event does not change the search content', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_TABS') {
+        return {
+          type: 'TABS',
+          results: [
+            {
+              type: 'tab',
+              tabId: 1,
+              title: 'First Tab',
+              url: 'https://first.example.com'
+            },
+            {
+              type: 'tab',
+              tabId: 2,
+              title: 'Second Tab',
+              url: 'https://second.example.com'
+            }
+          ]
+        };
+      }
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'first' } });
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(await screen.findByText('Second Tab')).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option')[1].getAttribute('data-selected')).toBe('true');
+
+    fireEvent.input(input, { target: { value: 'first' } });
+
+    expect(screen.getAllByRole('option')[1].getAttribute('data-selected')).toBe('true');
+  });
+
   it('returns to Google search on Escape from history search', async () => {
     const { input, onClose } = setup((message) => {
       if (message.type === 'QUERY_HISTORY') {

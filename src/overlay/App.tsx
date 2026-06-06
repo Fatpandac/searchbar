@@ -332,7 +332,7 @@ export function App({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      void commit(activeSuggestion, event.shiftKey);
+      void commit(activeSuggestion, event.ctrlKey);
     }
   };
 

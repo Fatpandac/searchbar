@@ -39,12 +39,14 @@ export function App({
   const [engines, setEngines] = useState<SearchEngine[]>(SEARCH_ENGINES);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedByUser, setSelectedByUser] = useState(false);
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const replaceSuggestions = (nextSuggestions: Suggestion[]) => {
     setSelectedIndex(0);
+    setSelectedByUser(false);
     setSuggestions(nextSuggestions);
   };
   const returnToGoogle = useCallback(() => {
@@ -91,6 +93,7 @@ export function App({
 
   useEffect(() => {
     setSelectedIndex(0);
+    setSelectedByUser(false);
   }, [mode, query]);
 
   useEffect(() => {
@@ -240,7 +243,7 @@ export function App({
   const searchBarModeColor =
     mode === 'engine' && activeEngine ? getImmediateSearchEngineModeColor(activeEngine) : undefined;
 
-  const commit = async (suggestion = activeSuggestion, newTab = false) => {
+  const commit = async (suggestion: Suggestion | null = activeSuggestion, newTab = false) => {
     const fallback = query.trim();
 
     if (!suggestion && !fallback) {
@@ -278,8 +281,14 @@ export function App({
   const handleInput = (nextQuery: string) => {
     if (nextQuery !== query) {
       setSelectedIndex(0);
+      setSelectedByUser(false);
     }
     setQuery(nextQuery);
+  };
+
+  const selectSuggestion = (index: number) => {
+    setSelectedByUser(true);
+    setSelectedIndex(index);
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
@@ -320,19 +329,21 @@ export function App({
 
     if (isMoveDownKey(event)) {
       event.preventDefault();
+      setSelectedByUser(true);
       setSelectedIndex((current) => wrapIndex(current + 1, suggestions.length));
       return;
     }
 
     if (isMoveUpKey(event)) {
       event.preventDefault();
+      setSelectedByUser(true);
       setSelectedIndex((current) => wrapIndex(current - 1, suggestions.length));
       return;
     }
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      void commit(activeSuggestion, event.ctrlKey);
+      void commit(mode === 'google' && !selectedByUser ? null : activeSuggestion, event.ctrlKey);
     }
   };
 
@@ -360,7 +371,7 @@ export function App({
           selectedIndex={selectedIndex}
           emptyLabel={emptyLabel}
           requestFavicon={requestFavicon}
-          onSelect={setSelectedIndex}
+          onSelect={selectSuggestion}
           onCommit={(suggestion) => void commit(suggestion)}
         />
       </section>
@@ -419,7 +430,5 @@ function mergeGoogleModeSuggestions(
   googleSuggestions: Suggestion[],
   historySuggestions: Suggestion[]
 ): Suggestion[] {
-  const primarySuggestions = googleSuggestions.length > 0 ? googleSuggestions : baseSuggestions;
-
-  return dedupeSuggestions([...historySuggestions, ...primarySuggestions]).slice(0, 10);
+  return dedupeSuggestions([...baseSuggestions, ...historySuggestions, ...googleSuggestions]).slice(0, 10);
 }

@@ -141,6 +141,64 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: 'react' });
   });
 
+  it('keeps direct Google search as the default Enter action after autosuggestions load', async () => {
+    const { input, sendMessage, onClose } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'react query',
+              url: 'https://www.google.com/search?q=react+query'
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'react' } });
+    expect(await screen.findByText('react query')).toBeTruthy();
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'https://www.google.com/search?q=react'
+      });
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('keeps the current query as the first Google suggestion after autosuggestions load', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return {
+          type: 'GOOGLE_SUGGESTIONS',
+          results: [
+            {
+              type: 'search',
+              title: 'react query',
+              url: 'https://www.google.com/search?q=react+query'
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'react' } });
+    expect(await screen.findByText('react query')).toBeTruthy();
+
+    const options = screen.getAllByRole('option');
+    expect(options[0].querySelector('.searchbar-title')?.textContent).toBe('react');
+    expect(options[0].querySelector('.searchbar-url')?.textContent).toBe('https://www.google.com/search?q=react');
+    expect(options[0].getAttribute('data-selected')).toBe('true');
+  });
+
   it('shows matching history entries together with Google autosuggestions in default search mode', async () => {
     const { input, sendMessage } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
@@ -181,8 +239,9 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_HISTORY', query: 'react' });
 
     const options = screen.getAllByRole('option');
-    expect(options[0].textContent).toContain('React Router Docs');
-    expect(options[1].textContent).toContain('react hooks');
+    expect(options[0].querySelector('.searchbar-title')?.textContent).toBe('react');
+    expect(options[1].textContent).toContain('React Router Docs');
+    expect(options[2].textContent).toContain('react hooks');
 
     fireEvent.pointerEnter(historyOption.closest('[role="option"]') as HTMLElement);
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -235,10 +294,11 @@ describe('App', () => {
 
     const options = screen.getAllByRole('option');
     expect(options.filter((option) => option.textContent?.includes('History'))).toHaveLength(5);
-    expect(options[5].textContent).toContain('react hooks');
+    expect(options[0].querySelector('.searchbar-title')?.textContent).toBe('react');
+    expect(options[6].textContent).toContain('react hooks');
   });
 
-  it('selects the first returned Google suggestion after autosuggestions load', async () => {
+  it('selects the current query after autosuggestions load', async () => {
     const { input } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
         return {
@@ -265,7 +325,7 @@ describe('App', () => {
     expect(await screen.findByText('react query')).toBeTruthy();
 
     const options = screen.getAllByRole('option');
-    expect(options[0].textContent).toContain('react hooks');
+    expect(options[0].querySelector('.searchbar-title')?.textContent).toBe('react');
     expect(options[0].getAttribute('data-selected')).toBe('true');
   });
 

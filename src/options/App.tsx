@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { SearchEngine } from '../shared/search-engines';
 import { getCustomSearchEngines, saveCustomSearchEngines } from '../shared/search-engine-storage';
+import {
+  DEFAULT_OPEN_TARGET,
+  getDefaultOpenTarget,
+  saveDefaultOpenTarget,
+  type DefaultOpenTarget
+} from '../shared/settings-storage';
 import { resolveSearchEngineModeColor } from '../overlay/mode-color';
 
 export type OptionsAppProps = {
   loadCustomEngines?: () => Promise<SearchEngine[]>;
   saveCustomEngines?: (engines: SearchEngine[]) => Promise<void>;
+  loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
+  saveDefaultOpenTarget?: (target: DefaultOpenTarget) => Promise<void>;
   resolveModeColor?: (engine: SearchEngine) => Promise<string | undefined>;
 };
 
@@ -20,10 +28,13 @@ const EMPTY_DRAFT: Draft = { name: '', keyword: '', searchUrl: '' };
 export function OptionsApp({
   loadCustomEngines = getCustomSearchEngines,
   saveCustomEngines: saveEngines = saveCustomSearchEngines,
+  loadDefaultOpenTarget: loadOpenTarget = getDefaultOpenTarget,
+  saveDefaultOpenTarget: saveOpenTarget = saveDefaultOpenTarget,
   resolveModeColor = resolveSearchEngineModeColor
 }: OptionsAppProps) {
   const [engines, setEngines] = useState<SearchEngine[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -39,6 +50,20 @@ export function OptionsApp({
       cancelled = true;
     };
   }, [loadCustomEngines]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadOpenTarget().then((nextOpenTarget) => {
+      if (!cancelled) {
+        setDefaultOpenTarget(nextOpenTarget);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadOpenTarget]);
 
   const addEngine = async () => {
     const baseEngine = createEngine(draft);
@@ -62,11 +87,40 @@ export function OptionsApp({
     await saveEngines(nextEngines);
   };
 
+  const changeDefaultOpenTarget = async (target: DefaultOpenTarget) => {
+    setDefaultOpenTarget(target);
+    await saveOpenTarget(target);
+  };
+
   return (
     <main className="options-shell">
       <section className="options-header">
         <h1>Quicksearch Settings</h1>
         <p>Configure shortcuts like gh, yt, or your own keyword. Search URLs must include {'{query}'}.</p>
+      </section>
+
+      <section className="options-setting" aria-label="Default Enter behavior">
+        <h2>Default Enter Behavior</h2>
+        <div className="options-radio-group">
+          <label>
+            <input
+              type="radio"
+              name="default-open-target"
+              checked={defaultOpenTarget === 'currentTab'}
+              onChange={() => void changeDefaultOpenTarget('currentTab')}
+            />
+            <span>Open in current tab</span>
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="default-open-target"
+              checked={defaultOpenTarget === 'newTab'}
+              onChange={() => void changeDefaultOpenTarget('newTab')}
+            />
+            <span>Open in new tab</span>
+          </label>
+        </div>
       </section>
 
       <section className="options-form" aria-label="Add quicksearch">

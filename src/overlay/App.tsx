@@ -11,6 +11,11 @@ import {
   rankSuggestions
 } from '../shared/suggestion';
 import { loadSearchEngines } from '../shared/search-engine-storage';
+import {
+  DEFAULT_OPEN_TARGET,
+  getDefaultOpenTarget,
+  type DefaultOpenTarget
+} from '../shared/settings-storage';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 import { getImmediateSearchEngineModeColor } from './mode-color';
@@ -25,6 +30,7 @@ export type AppProps = {
   returnToGoogleSignal?: number;
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
   loadEngines?: () => Promise<SearchEngine[]>;
+  loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
 };
 
 export function App({
@@ -32,7 +38,8 @@ export function App({
   onModeChange,
   returnToGoogleSignal = 0,
   sendMessage = sendChromeMessage,
-  loadEngines = loadSearchEngines
+  loadEngines = loadSearchEngines,
+  loadDefaultOpenTarget = getDefaultOpenTarget
 }: AppProps) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('google');
@@ -43,6 +50,7 @@ export function App({
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
+  const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
   const inputRef = useRef<HTMLInputElement>(null);
   const replaceSuggestions = (nextSuggestions: Suggestion[]) => {
     setSelectedIndex(0);
@@ -79,6 +87,20 @@ export function App({
       cancelled = true;
     };
   }, [loadEngines]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadDefaultOpenTarget().then((nextOpenTarget) => {
+      if (!cancelled) {
+        setDefaultOpenTarget(nextOpenTarget);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDefaultOpenTarget]);
 
   useEffect(() => {
     focusInput(inputRef.current);
@@ -260,7 +282,7 @@ export function App({
               (mode === 'engine' && activeEngine
                 ? createSearchEngineSuggestion(activeEngine, fallback).url
                 : createGoogleSearchSuggestion(fallback).url),
-            ...(newTab ? { newTab: true } : {})
+            ...(newTab || defaultOpenTarget === 'newTab' ? { newTab: true } : {})
           });
 
     if (response.type === 'ERROR') {

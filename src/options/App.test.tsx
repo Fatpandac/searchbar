@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { describe, expect, it, vi } from 'vitest';
 import { OptionsApp } from './App';
 import type { SearchEngine } from '../shared/search-engines';
+import type { DefaultOpenTarget } from '../shared/settings-storage';
 
 describe('OptionsApp', () => {
   it('loads and saves custom quicksearch engines', async () => {
@@ -81,5 +82,31 @@ describe('OptionsApp', () => {
 
     expect(await screen.findByText('Search URL must include {query}')).toBeTruthy();
     expect(saveCustomEngines).not.toHaveBeenCalled();
+  });
+
+  it('loads and saves the default Enter open target', async () => {
+    const loadDefaultOpenTarget = vi.fn<() => Promise<DefaultOpenTarget>>(() => Promise.resolve('currentTab'));
+    const saveDefaultOpenTarget = vi.fn<(_: DefaultOpenTarget) => Promise<void>>(() => Promise.resolve());
+
+    render(
+      <OptionsApp
+        loadCustomEngines={() => Promise.resolve([])}
+        saveCustomEngines={() => Promise.resolve()}
+        loadDefaultOpenTarget={loadDefaultOpenTarget}
+        saveDefaultOpenTarget={saveDefaultOpenTarget}
+      />
+    );
+
+    const currentTab = await screen.findByLabelText('Open in current tab');
+    const newTab = screen.getByLabelText('Open in new tab');
+
+    expect((currentTab as HTMLInputElement).checked).toBe(true);
+
+    fireEvent.click(newTab);
+
+    await waitFor(() => {
+      expect(saveDefaultOpenTarget).toHaveBeenCalledWith('newTab');
+    });
+    expect((newTab as HTMLInputElement).checked).toBe(true);
   });
 });

@@ -8,7 +8,8 @@ const chromeApi = () => ({
   tabs: {
     query: vi.fn(),
     sendMessage: vi.fn(),
-    update: vi.fn()
+    update: vi.fn(),
+    create: vi.fn()
   },
   windows: {
     update: vi.fn()
@@ -219,6 +220,21 @@ describe('createMessageHandler', () => {
     );
 
     expect(api.tabs.update).toHaveBeenCalledWith(7, { url: 'chrome://settings' });
+    expect(sendResponse).toHaveBeenCalledWith({ type: 'NAV_OK' });
+  });
+
+  it('opens navigation in a new tab when requested', async () => {
+    const api = chromeApi();
+    const sendResponse = vi.fn();
+
+    await createMessageHandler(asBackgroundApi(api))(
+      { type: 'NAVIGATE', url: 'https://example.com', newTab: true },
+      { tab: { id: 7 } as chrome.tabs.Tab },
+      sendResponse
+    );
+
+    expect(api.tabs.create).toHaveBeenCalledWith({ url: 'https://example.com' });
+    expect(api.tabs.update).not.toHaveBeenCalled();
     expect(sendResponse).toHaveBeenCalledWith({ type: 'NAV_OK' });
   });
 

@@ -2,11 +2,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/pr
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import type { SearchRequest, SearchResponse } from '../shared/messages';
+import type { DefaultOpenTarget } from '../shared/settings-storage';
 
-function setup(responder: (message: SearchRequest) => Promise<SearchResponse> | SearchResponse) {
+function setup(
+  responder: (message: SearchRequest) => Promise<SearchResponse> | SearchResponse,
+  options: { loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget> } = {}
+) {
   const sendMessage = vi.fn((message: SearchRequest) => Promise.resolve(responder(message)));
   const onClose = vi.fn();
-  render(<App sendMessage={sendMessage} onClose={onClose} />);
+  render(<App sendMessage={sendMessage} onClose={onClose} {...options} />);
   const input = screen.getByRole('combobox') as HTMLInputElement;
 
   return { input, sendMessage, onClose };
@@ -69,6 +73,25 @@ describe('App', () => {
     });
     expect(sendMessage).not.toHaveBeenCalledWith({ type: 'QUERY_HISTORY', query: 'react hooks' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('uses the configured default Enter open target', async () => {
+    const { input, sendMessage } = setup(
+      () => ({ type: 'NAV_OK' }),
+      { loadDefaultOpenTarget: () => Promise.resolve('newTab') }
+    );
+
+    fireEvent.input(input, { target: { value: 'react hooks' } });
+    await screen.findByText('react hooks');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'https://www.google.com/search?q=react+hooks',
+        newTab: true
+      });
+    });
   });
 
   it('lets composing Enter confirm IME text instead of committing the selected suggestion', async () => {

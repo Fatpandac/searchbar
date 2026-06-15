@@ -73,4 +73,21 @@ describe('rankSuggestions', () => {
     expect(ranked).toHaveLength(10);
     expect(ranked.filter((item) => normalizeUrl(item.url) === 'https://example.com/')).toHaveLength(1);
   });
+
+  it('matches history titles when the query omits word separators', () => {
+    const ranked = rankSuggestions('hackernews', [
+      { type: 'history', title: 'GitHub', url: 'https://github.com', visitCount: 99 },
+      { type: 'history', title: 'Hacker News', url: 'https://news.ycombinator.com', visitCount: 1 }
+    ]);
+
+    expect(ranked.map((item) => item.title)).toEqual(['Hacker News']);
+  });
+
+  it('does not return unrelated history entries just because they have visits', () => {
+    const ranked = rankSuggestions('hackernews', [
+      { type: 'history', title: 'GitHub', url: 'https://github.com', visitCount: 99 }
+    ]);
+
+    expect(ranked).toEqual([]);
+  });
 });

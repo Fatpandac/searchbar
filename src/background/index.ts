@@ -6,7 +6,7 @@ import type {
   SearchResult,
   TabResult
 } from '../shared/messages';
-import { createGoogleSearchSuggestion } from '../shared/suggestion';
+import { createGoogleSearchSuggestion, rankSuggestions } from '../shared/suggestion';
 
 type SendResponse = (response: SearchResponse) => void;
 type ChromeApi = Pick<typeof chrome, 'history' | 'runtime' | 'tabs' | 'windows' | 'commands'>;
@@ -27,6 +27,9 @@ type FaviconPayload = {
   url: string;
 };
 
+const HISTORY_SEARCH_MAX_RESULTS = 25;
+const HISTORY_FALLBACK_MAX_RESULTS = 200;
+
 export function createMessageHandler(chromeApi: BackgroundChromeApi, options: MessageHandlerOptions = {}) {
   const fetchGoogleSuggestions = options.fetchGoogleSuggestions ?? fetchGoogleSuggestPayload;
   const fetchFavicon = options.fetchFavicon ?? fetchFaviconPayload;
@@ -38,23 +41,25 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
   ) => {
     try {
       if (message.type === 'QUERY_HISTORY') {
+        const query = message.query.trim();
         const historyItems = await chromeApi.history.search({
-          text: message.query,
-          maxResults: 25,
+          text: query,
+          maxResults: HISTORY_SEARCH_MAX_RESULTS,
           startTime: 0
         });
+        const fallbackHistoryItems =
+          historyItems.length === 0 && shouldSearchRecentHistoryFallback(query)
+            ? await chromeApi.history.search({
+                text: '',
+                maxResults: HISTORY_FALLBACK_MAX_RESULTS,
+                startTime: 0
+              })
+            : [];
+        const results = mapHistoryItems([...historyItems, ...fallbackHistoryItems]);
 
         sendResponse({
           type: 'HISTORY',
-          results: historyItems
-            .filter((item): item is chrome.history.HistoryItem & { url: string } => Boolean(item.url))
-            .map<HistoryResult>((item) => ({
-              type: 'history',
-              title: item.title || item.url,
-              url: item.url,
-              visitCount: item.visitCount,
-              lastVisitTime: item.lastVisitTime
-            }))
+          results: fallbackHistoryItems.length > 0 ? rankSuggestions(query, results) : results
         });
         return;
       }
@@ -146,6 +151,22 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
       });
     }
   };
+}
+
+function mapHistoryItems(historyItems: chrome.history.HistoryItem[]): HistoryResult[] {
+  return historyItems
+    .filter((item): item is chrome.history.HistoryItem & { url: string } => Boolean(item.url))
+    .map<HistoryResult>((item) => ({
+      type: 'history',
+      title: item.title || item.url,
+      url: item.url,
+      visitCount: item.visitCount,
+      lastVisitTime: item.lastVisitTime
+    }));
+}
+
+function shouldSearchRecentHistoryFallback(query: string): boolean {
+  return query.length >= 4 && /^[a-z0-9]+$/i.test(query);
 }
 
 function queryTabs(tabs: QueryableTab[], query: string): QueryableTab[] {

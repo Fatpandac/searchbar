@@ -102,16 +102,15 @@ function scoreSuggestion(query: string, suggestion: Suggestion): number {
   const url = suggestion.url.toLowerCase();
   const title = suggestion.title.toLowerCase();
   const comparableUrl = url.replace(/^https?:\/\//, '');
-  let score = 0;
+  const compactQuery = compactSearchKey(query);
+  let score = scoreTextMatch(query, title, url, comparableUrl);
 
-  if (url.startsWith(query) || comparableUrl.startsWith(query)) {
-    score = 100;
-  } else if (title.startsWith(query)) {
-    score = 80;
-  } else if (url.includes(query)) {
-    score = 60;
-  } else if (title.includes(query)) {
-    score = 40;
+  if (!score && compactQuery) {
+    score = scoreCompactMatch(compactQuery, title, url, comparableUrl);
+  }
+
+  if (!score) {
+    return 0;
   }
 
   if (suggestion.type === 'history') {
@@ -132,6 +131,54 @@ function scoreSuggestion(query: string, suggestion: Suggestion): number {
   }
 
   return score;
+}
+
+function scoreTextMatch(query: string, title: string, url: string, comparableUrl: string): number {
+  if (url.startsWith(query) || comparableUrl.startsWith(query)) {
+    return 100;
+  }
+
+  if (title.startsWith(query)) {
+    return 80;
+  }
+
+  if (url.includes(query)) {
+    return 60;
+  }
+
+  if (title.includes(query)) {
+    return 40;
+  }
+
+  return 0;
+}
+
+function scoreCompactMatch(query: string, title: string, url: string, comparableUrl: string): number {
+  const compactTitle = compactSearchKey(title);
+  const compactUrl = compactSearchKey(url);
+  const compactComparableUrl = compactSearchKey(comparableUrl);
+
+  if (compactUrl.startsWith(query) || compactComparableUrl.startsWith(query)) {
+    return 90;
+  }
+
+  if (compactTitle.startsWith(query)) {
+    return 70;
+  }
+
+  if (compactUrl.includes(query)) {
+    return 50;
+  }
+
+  if (compactTitle.includes(query)) {
+    return 30;
+  }
+
+  return 0;
+}
+
+function compactSearchKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function encodeQuery(query: string): string {

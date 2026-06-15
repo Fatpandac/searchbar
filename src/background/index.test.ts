@@ -57,6 +57,52 @@ describe('createMessageHandler', () => {
     });
   });
 
+  it('falls back to local history matching when a compact query omits title separators', async () => {
+    const api = chromeApi();
+    api.history.search
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          title: 'GitHub',
+          url: 'https://github.com',
+          visitCount: 99,
+          lastVisitTime: 100
+        },
+        {
+          title: 'Hacker News',
+          url: 'https://news.ycombinator.com',
+          visitCount: 3,
+          lastVisitTime: 200
+        }
+      ]);
+    const sendResponse = vi.fn();
+
+    await createMessageHandler(asBackgroundApi(api))({ type: 'QUERY_HISTORY', query: 'hackernews' }, {}, sendResponse);
+
+    expect(api.history.search).toHaveBeenNthCalledWith(1, {
+      text: 'hackernews',
+      maxResults: 25,
+      startTime: 0
+    });
+    expect(api.history.search).toHaveBeenNthCalledWith(2, {
+      text: '',
+      maxResults: 200,
+      startTime: 0
+    });
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'HISTORY',
+      results: [
+        {
+          type: 'history',
+          title: 'Hacker News',
+          url: 'https://news.ycombinator.com',
+          visitCount: 3,
+          lastVisitTime: 200
+        }
+      ]
+    });
+  });
+
   it('queries tabs in the sender window and fuzzy matches tabs by title or URL', async () => {
     const api = chromeApi();
     api.tabs.query.mockResolvedValue([

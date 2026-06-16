@@ -118,7 +118,7 @@ export function App({
   useEffect(() => {
     setSelectedIndex(0);
     setSelectedByUser(false);
-  }, [mode, query]);
+  }, [mode]);
 
   useEffect(() => {
     if (returnToGoogleSignal > 0) {

@@ -417,8 +417,9 @@ export function registerBackground(chromeApi: ChromeApi): void {
     return true;
   });
 
+  // Handle keyboard shortcuts (both primary and alternative)
   chromeApi.commands.onCommand.addListener((command) => {
-    if (command !== 'toggle-searchbar') {
+    if (command !== 'toggle-searchbar' && command !== 'toggle-searchbar-alt') {
       return;
     }
 
@@ -428,6 +429,15 @@ export function registerBackground(chromeApi: ChromeApi): void {
       }
     });
   });
+
+  // Handle extension icon click as fallback activation method
+  if (chromeApi.runtime.onMessage && typeof chrome !== 'undefined' && chrome.action) {
+    chrome.action.onClicked.addListener((tab) => {
+      if (tab?.id) {
+        void chromeApi.tabs.sendMessage(tab.id, { type: 'TOGGLE' } satisfies SearchRequest);
+      }
+    });
+  }
 }
 
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {

@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "Command-palette-style search bar for Chrome.",
   "permissions": ["tabs", "history", "storage"],
+  "action": {
+    "default_title": "Toggle SearchBar (Cmd+K)"
+  },
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/index.ts",
@@ -24,6 +27,13 @@
         "mac": "Command+K"
       },
       "description": "Toggle SearchBar"
+    },
+    "toggle-searchbar-alt": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Toggle SearchBar (Alternative)"
     }
   }
 }

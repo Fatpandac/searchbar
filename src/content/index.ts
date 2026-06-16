@@ -110,6 +110,10 @@ export function createContentController(options: ContentControllerOptions = {}) 
     const isKeyDown = event instanceof KeyboardEvent && event.type === 'keydown';
     const isSummon =
       isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
+    
+    // Alternative activation: Cmd+Shift+K (works even when Cmd+K is taken by the page)
+    const isAlternativeSummon =
+      isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && event.shiftKey;
 
     if (state) {
       if (isEventFromOverlay(event, state.host)) {
@@ -121,7 +125,7 @@ export function createContentController(options: ContentControllerOptions = {}) 
         event.preventDefault();
       }
       event.stopImmediatePropagation();
-      if (isSummon && !event.altKey && !event.shiftKey) {
+      if (isSummon && !event.altKey) {
         toggle();
         return;
       }
@@ -150,6 +154,15 @@ export function createContentController(options: ContentControllerOptions = {}) 
       if (shouldForwardOwnedInputEvent(event)) {
         state.overlay?.handleKeyboardEvent(event);
       }
+      return;
+    }
+
+    // Alternative activation shortcut bypasses editable element check
+    if (isAlternativeSummon && !event.altKey) {
+      markCapturedInputEvent(event);
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      toggle();
       return;
     }
 

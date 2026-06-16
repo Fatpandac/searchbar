@@ -266,7 +266,7 @@ describe('App', () => {
     expect(options[1].textContent).toContain('React Router Docs');
     expect(options[2].textContent).toContain('react hooks');
 
-    fireEvent.pointerEnter(historyOption.closest('[role="option"]') as HTMLElement);
+    fireEvent.pointerMove(historyOption.closest('[role="option"]') as HTMLElement);
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
@@ -350,6 +350,48 @@ describe('App', () => {
     const options = screen.getAllByRole('option');
     expect(options[0].querySelector('.searchbar-title')?.textContent).toBe('react');
     expect(options[0].getAttribute('data-selected')).toBe('true');
+  });
+
+  it('keeps the current query selected in Google mode when refreshed results appear under a stationary pointer', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return { type: 'GOOGLE_SUGGESTIONS', results: [] };
+      }
+
+      if (message.type === 'QUERY_HISTORY') {
+        return {
+          type: 'HISTORY',
+          results: [
+            {
+              type: 'history',
+              title: 'GitHub',
+              url: 'https://github.com',
+              visitCount: 3
+            }
+          ]
+        };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'git' } });
+    expect(await screen.findByText('GitHub')).toBeTruthy();
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option')[1].getAttribute('data-selected')).toBe('true');
+
+    fireEvent.input(input, { target: { value: 'github' } });
+    await waitFor(() => {
+      const options = screen.getAllByRole('option');
+      expect(options[0].querySelector('.searchbar-title')?.textContent).toBe('github');
+      expect(options[1].querySelector('.searchbar-title')?.textContent).toBe('GitHub');
+    });
+
+    fireEvent.pointerEnter(screen.getByText('GitHub').closest('[role="option"]') as HTMLElement);
+
+    const options = screen.getAllByRole('option');
+    expect(options[0].getAttribute('data-selected')).toBe('true');
+    expect(options[1].getAttribute('data-selected')).toBe('false');
   });
 
   it('keeps focus in the search input when pressing a suggestion', async () => {
@@ -483,7 +525,7 @@ describe('App', () => {
     fireEvent.input(input, { target: { value: 'git' } });
     expect(await screen.findByText('Git Two')).toBeTruthy();
 
-    fireEvent.pointerEnter(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
+    fireEvent.pointerMove(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
     fireEvent.input(input, { target: { value: 'docs' } });
     fireEvent.pointerEnter(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
     expect(await screen.findByText('Docs Two')).toBeTruthy();

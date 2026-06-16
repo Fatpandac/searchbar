@@ -30,7 +30,7 @@ export function SuggestionList({
           suggestion={suggestion}
           selected={index === selectedIndex}
           requestFavicon={requestFavicon}
-          onPointerEnter={() => onSelect(index)}
+          onPointerMove={() => onSelect(index)}
           onClick={() => onCommit(suggestion)}
         />
       ))}

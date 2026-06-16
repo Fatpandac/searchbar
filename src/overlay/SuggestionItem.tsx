@@ -5,7 +5,7 @@ type SuggestionItemProps = {
   suggestion: Suggestion;
   selected: boolean;
   requestFavicon: (pageUrl: string) => Promise<string | undefined>;
-  onPointerEnter: () => void;
+  onPointerMove: () => void;
   onClick: () => void;
 };
 
@@ -13,7 +13,7 @@ export function SuggestionItem({
   suggestion,
   selected,
   requestFavicon,
-  onPointerEnter,
+  onPointerMove,
   onClick
 }: SuggestionItemProps) {
   const itemRef = useRef<HTMLLIElement>(null);
@@ -57,7 +57,7 @@ export function SuggestionItem({
       data-selected={selected}
       role="option"
       aria-selected={selected}
-      onPointerEnter={onPointerEnter}
+      onPointerMove={onPointerMove}
       onPointerDown={(event) => event.preventDefault()}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}

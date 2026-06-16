@@ -7,8 +7,10 @@ import {
 } from '../shared/search-engines';
 import {
   createGoogleSearchSuggestion,
+  createGoToSuggestion,
   createSearchEngineSuggestion,
-  rankSuggestions
+  rankSuggestions,
+  shouldCreateGoToSuggestion
 } from '../shared/suggestion';
 import { loadSearchEngines } from '../shared/search-engine-storage';
 import {
@@ -155,7 +157,11 @@ export function App({
     }
 
     if (mode === 'google') {
-      const staticSuggestion = trimmed ? createGoogleSearchSuggestion(trimmed) : null;
+      const staticSuggestion = trimmed
+        ? shouldCreateGoToSuggestion(trimmed)
+          ? createGoToSuggestion(trimmed)
+          : createGoogleSearchSuggestion(trimmed)
+        : null;
       const baseSuggestions = staticSuggestion ? [staticSuggestion] : [];
       replaceSuggestions(baseSuggestions);
       setError(null);

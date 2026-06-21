@@ -11,7 +11,13 @@ export const CHROME_PAGES: ChromePageResult[] = [
     type: 'chrome',
     url: 'chrome://extensions',
     title: 'Extensions',
-    keywords: ['extensions', 'addons']
+    keywords: ['extensions', 'addons', 'plugins']
+  },
+  {
+    type: 'chrome',
+    url: 'chrome://extensions/shortcuts',
+    title: 'Extensions Shortcuts',
+    keywords: ['extensions', 'shortcuts', 'plugins', 'plugin settings']
   },
   {
     type: 'chrome',

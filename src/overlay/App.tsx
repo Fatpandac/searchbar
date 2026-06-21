@@ -18,6 +18,7 @@ import {
   getDefaultOpenTarget,
   type DefaultOpenTarget
 } from '../shared/settings-storage';
+import { queryChromePages } from '../shared/chrome-pages';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 import { getImmediateSearchEngineModeColor } from './mode-color';
@@ -162,7 +163,8 @@ export function App({
           ? createGoToSuggestion(trimmed)
           : createGoogleSearchSuggestion(trimmed)
         : null;
-      const baseSuggestions = staticSuggestion ? [staticSuggestion] : [];
+      const chromeSuggestions = trimmed ? queryChromePages(trimmed) : [];
+      const baseSuggestions = staticSuggestion ? [staticSuggestion, ...chromeSuggestions] : chromeSuggestions;
       replaceSuggestions(baseSuggestions);
       setError(null);
 

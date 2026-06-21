@@ -164,6 +164,50 @@ describe('App', () => {
     expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: 'react' });
   });
 
+  it('shows chrome:// pages in default search and opens the selected page', async () => {
+    const { input, sendMessage } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS' || message.type === 'QUERY_HISTORY') {
+        return message.type === 'QUERY_GOOGLE_SUGGESTIONS'
+          ? { type: 'GOOGLE_SUGGESTIONS', results: [] }
+          : { type: 'HISTORY', results: [] };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'settings' } });
+    const chromePage = await screen.findByText('Settings');
+
+    fireEvent.pointerMove(chromePage.closest('[role="option"]') as HTMLElement);
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'chrome://settings'
+      });
+    });
+  });
+
+  it('includes the Chrome extensions shortcut page in default search', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
+        return { type: 'GOOGLE_SUGGESTIONS', results: [] };
+      }
+
+      if (message.type === 'QUERY_HISTORY') {
+        return { type: 'HISTORY', results: [] };
+      }
+
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.input(input, { target: { value: 'plugin settings' } });
+
+    expect(await screen.findByText('Extensions Shortcuts')).toBeTruthy();
+    expect(await screen.findByText('chrome://extensions/shortcuts')).toBeTruthy();
+  });
+
   it('keeps direct Google search as the default Enter action after autosuggestions load', async () => {
     const { input, sendMessage, onClose } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {

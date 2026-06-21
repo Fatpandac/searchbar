@@ -6,6 +6,7 @@ describe('CHROME_PAGES', () => {
     expect(CHROME_PAGES.map((page) => page.url)).toEqual([
       'chrome://settings',
       'chrome://extensions',
+      'chrome://extensions/shortcuts',
       'chrome://bookmarks',
       'chrome://history',
       'chrome://downloads',
@@ -19,8 +20,12 @@ describe('queryChromePages', () => {
   it('matches by title, url, and keyword', () => {
     expect(queryChromePages('prefs').map((page) => page.url)).toEqual(['chrome://settings']);
     expect(queryChromePages('chrome://ext').map((page) => page.url)).toEqual([
-      'chrome://extensions'
+      'chrome://extensions',
+      'chrome://extensions/shortcuts'
     ]);
     expect(queryChromePages('experiments').map((page) => page.url)).toEqual(['chrome://flags']);
+    expect(queryChromePages('plugin settings').map((page) => page.url)).toEqual([
+      'chrome://extensions/shortcuts'
+    ]);
   });
 });

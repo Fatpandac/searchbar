@@ -571,7 +571,7 @@ describe('App', () => {
 
     fireEvent.pointerMove(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
     fireEvent.input(input, { target: { value: 'docs' } });
-    fireEvent.pointerEnter(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
+    fireEvent.pointerMove(screen.getByText('Git Two').closest('[role="option"]') as HTMLElement);
     expect(await screen.findByText('Docs Two')).toBeTruthy();
 
     const options = screen.getAllByRole('option');
@@ -750,6 +750,41 @@ describe('App', () => {
       expect(sendMessage).toHaveBeenCalledWith({ type: 'QUERY_FAVICON', pageUrl: 'https://docs.example.com' });
       expect((option.querySelector('img') as HTMLImageElement).src).toBe('data:image/png;base64,BBBB');
     });
+  });
+
+  it('wraps keyboard selection from the last item back to the first even when the pointer sits on the list', async () => {
+    const { input } = setup((message) => {
+      if (message.type === 'QUERY_TABS') {
+        return {
+          type: 'TABS',
+          results: [
+            {
+              type: 'tab',
+              tabId: 1,
+              title: 'First Tab',
+              url: 'https://first.example.com'
+            },
+            {
+              type: 'tab',
+              tabId: 2,
+              title: 'Second Tab',
+              url: 'https://second.example.com'
+            }
+          ]
+        };
+      }
+      return { type: 'NAV_OK' };
+    });
+
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(await screen.findByText('Second Tab')).toBeTruthy();
+
+    const lastOption = screen.getAllByRole('option')[1];
+    fireEvent.pointerMove(lastOption, { clientX: 10, clientY: 10 });
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    fireEvent.pointerMove(lastOption, { clientX: 10, clientY: 10 });
+
+    expect(screen.getAllByRole('option')[0].getAttribute('data-selected')).toBe('true');
   });
 
   it('uses Ctrl+J and Ctrl+K to move the selected item', async () => {

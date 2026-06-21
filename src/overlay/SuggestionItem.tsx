@@ -5,7 +5,7 @@ type SuggestionItemProps = {
   suggestion: Suggestion;
   selected: boolean;
   requestFavicon: (pageUrl: string) => Promise<string | undefined>;
-  onPointerMove: () => void;
+  onPointerMove: (event: PointerEvent) => void;
   onClick: () => void;
 };
 

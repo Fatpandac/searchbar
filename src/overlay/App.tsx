@@ -50,6 +50,7 @@ export function App({
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedByUser, setSelectedByUser] = useState(false);
+  const lastPointerPosition = useRef<{ x: number; y: number } | null>(null);
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
@@ -316,7 +317,18 @@ export function App({
     setQuery(nextQuery);
   };
 
-  const selectSuggestion = (index: number) => {
+  const selectSuggestion = (index: number, event: PointerEvent) => {
+    const position = { x: event.clientX, y: event.clientY };
+
+    if (
+      lastPointerPosition.current &&
+      lastPointerPosition.current.x === position.x &&
+      lastPointerPosition.current.y === position.y
+    ) {
+      return;
+    }
+
+    lastPointerPosition.current = position;
     setSelectedByUser(true);
     setSelectedIndex(index);
   };

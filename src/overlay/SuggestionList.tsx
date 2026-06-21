@@ -6,7 +6,7 @@ type SuggestionListProps = {
   selectedIndex: number;
   emptyLabel: string;
   requestFavicon: (pageUrl: string) => Promise<string | undefined>;
-  onSelect: (index: number) => void;
+  onSelect: (index: number, event: PointerEvent) => void;
   onCommit: (suggestion: Suggestion) => void;
 };
 
@@ -30,7 +30,7 @@ export function SuggestionList({
           suggestion={suggestion}
           selected={index === selectedIndex}
           requestFavicon={requestFavicon}
-          onPointerMove={() => onSelect(index)}
+          onPointerMove={(event) => onSelect(index, event)}
           onClick={() => onCommit(suggestion)}
         />
       ))}

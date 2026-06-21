@@ -53,6 +53,22 @@ describe('App', () => {
     });
   });
 
+  it('opens URL-like input directly on Enter without selecting a suggestion', async () => {
+    const { input, sendMessage, onClose } = setup(() => ({ type: 'NAV_OK' }));
+
+    fireEvent.input(input, { target: { value: 'github.com/foo' } });
+    await screen.findByText('Go to github.com/foo');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'https://github.com/foo'
+      });
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('defaults to Google search and navigates the query on Enter without querying history', async () => {
     const { input, sendMessage, onClose } = setup((message) => {
       if (message.type === 'QUERY_HISTORY') {

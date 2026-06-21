@@ -385,7 +385,7 @@ export function App({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      void commit(mode === 'google' && !selectedByUser ? null : activeSuggestion, event.ctrlKey);
+      void commit(mode === 'google' && !selectedByUser && activeSuggestion?.type !== 'go' ? null : activeSuggestion, event.ctrlKey);
     }
   };
 

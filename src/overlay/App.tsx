@@ -19,6 +19,12 @@ import {
   type DefaultOpenTarget
 } from '../shared/settings-storage';
 import { queryChromePages } from '../shared/chrome-pages';
+import {
+  loadSelectionCounts,
+  recordSelection,
+  reorderBySelection,
+  type SelectionCounts
+} from '../shared/selection-store';
 import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 import { getImmediateSearchEngineModeColor } from './mode-color';
@@ -34,6 +40,7 @@ export type AppProps = {
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
   loadEngines?: () => Promise<SearchEngine[]>;
   loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
+  loadCounts?: () => Promise<SelectionCounts>;
 };
 
 export function App({
@@ -42,7 +49,8 @@ export function App({
   returnToGoogleSignal = 0,
   sendMessage = sendChromeMessage,
   loadEngines = loadSearchEngines,
-  loadDefaultOpenTarget = getDefaultOpenTarget
+  loadDefaultOpenTarget = getDefaultOpenTarget,
+  loadCounts = loadSelectionCounts
 }: AppProps) {
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<Mode>('google');
@@ -56,10 +64,11 @@ export function App({
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectionCounts = useRef<SelectionCounts>({});
   const replaceSuggestions = (nextSuggestions: Suggestion[]) => {
     setSelectedIndex(0);
     setSelectedByUser(false);
-    setSuggestions(nextSuggestions);
+    setSuggestions(reorderBySelection(query, nextSuggestions, selectionCounts.current));
   };
   const returnToGoogle = useCallback(() => {
     setMode('google');
@@ -105,6 +114,12 @@ export function App({
       cancelled = true;
     };
   }, [loadDefaultOpenTarget]);
+
+  useEffect(() => {
+    void loadCounts().then((counts) => {
+      selectionCounts.current = counts;
+    });
+  }, [loadCounts]);
 
   useEffect(() => {
     focusInput(inputRef.current);
@@ -297,6 +312,10 @@ export function App({
     if (response.type === 'ERROR') {
       setError(response.message);
       return;
+    }
+
+    if (suggestion) {
+      void recordSelection(query, suggestion.url, selectionCounts.current);
     }
 
     onClose();

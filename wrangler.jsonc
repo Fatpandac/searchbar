@@ -1,0 +1,10 @@
+{
+  "name": "searchbar-landing",
+  "compatibility_date": "2024-12-01",
+  "assets": {
+    "directory": "./landing"
+  },
+  "routes": [
+    { "pattern": "searchbar.fatpandac.com", "custom_domain": true }
+  ]
+}

@@ -1,6 +1,10 @@
-# SearchBar
+<p align="center">
+  <img src="src/assets/icon-128.png" width="96" height="96" alt="SearchBar icon" />
+</p>
 
-SearchBar is a command-palette-style Chrome extension for fast search, history lookup, tab switching, and custom search engine shortcuts.
+<h1 align="center">SearchBar</h1>
+
+<p align="center">A command-palette-style Chrome extension for fast search, history lookup, tab switching, and custom search engine shortcuts.</p>
 
 ## Features
 
@@ -70,9 +74,19 @@ pnpm dev
 
 ```text
 src/
+  assets/       Extension icons
   background/   Chrome extension service worker and browser API handlers
   content/      Page content script and overlay mount lifecycle
   options/      Extension options page
   overlay/      SearchBar UI components and styling
   shared/       Message types, ranking, search engines, and shared utilities
+```
+
+## Icon
+
+The icon is a single SVG source at `src/assets/icon.svg`. Regenerate the PNG sizes after editing it:
+
+```bash
+cd src/assets
+for s in 16 32 48 128; do rsvg-convert -w $s -h $s icon.svg -o icon-$s.png; done
 ```

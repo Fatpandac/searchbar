@@ -289,8 +289,9 @@ export function App({
   const searchBarModeColor =
     mode === 'engine' && activeEngine ? getImmediateSearchEngineModeColor(activeEngine) : undefined;
 
-  const commit = async (suggestion: Suggestion | null = activeSuggestion, newTab = false) => {
+  const commit = async (suggestion: Suggestion | null = activeSuggestion, invertOpenTarget = false) => {
     const fallback = query.trim();
+    const openInNewTab = invertOpenTarget ? defaultOpenTarget === 'currentTab' : defaultOpenTarget === 'newTab';
 
     if (!suggestion && !fallback) {
       return;
@@ -306,7 +307,7 @@ export function App({
               (mode === 'engine' && activeEngine
                 ? createSearchEngineSuggestion(activeEngine, fallback).url
                 : createGoogleSearchSuggestion(fallback).url),
-            ...(newTab || defaultOpenTarget === 'newTab' ? { newTab: true } : {})
+            ...(openInNewTab ? { newTab: true } : {})
           });
 
     if (response.type === 'ERROR') {

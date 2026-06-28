@@ -110,6 +110,39 @@ describe('App', () => {
     });
   });
 
+  it('uses Ctrl+Enter as the opposite of the configured default open target', async () => {
+    const currentTab = setup(() => ({ type: 'NAV_OK' }));
+
+    fireEvent.input(currentTab.input, { target: { value: 'react hooks' } });
+    await screen.findByText('react hooks');
+    fireEvent.keyDown(currentTab.input, { key: 'Enter', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(currentTab.sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'https://www.google.com/search?q=react+hooks',
+        newTab: true
+      });
+    });
+
+    cleanup();
+    const newTab = setup(
+      () => ({ type: 'NAV_OK' }),
+      { loadDefaultOpenTarget: () => Promise.resolve('newTab') }
+    );
+
+    fireEvent.input(newTab.input, { target: { value: 'react hooks' } });
+    await screen.findByText('react hooks');
+    fireEvent.keyDown(newTab.input, { key: 'Enter', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(newTab.sendMessage).toHaveBeenCalledWith({
+        type: 'NAVIGATE',
+        url: 'https://www.google.com/search?q=react+hooks'
+      });
+    });
+  });
+
   it('lets composing Enter confirm IME text instead of committing the selected suggestion', async () => {
     const { input, sendMessage, onClose } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {

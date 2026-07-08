@@ -288,6 +288,42 @@ describe('App', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('navigates to a selection-promoted history entry on Enter without manual selection', async () => {
+    const sendMessage = vi.fn((message: SearchRequest) =>
+      Promise.resolve<SearchResponse>(
+        message.type === 'QUERY_HISTORY'
+          ? {
+              type: 'HISTORY',
+              results: [{ type: 'history', title: 'GitHub', url: 'https://github.com', visitCount: 3 }]
+            }
+          : message.type === 'QUERY_GOOGLE_SUGGESTIONS'
+            ? { type: 'GOOGLE_SUGGESTIONS', results: [] }
+            : { type: 'NAV_OK' }
+      )
+    );
+    const onClose = vi.fn();
+    render(
+      <App
+        sendMessage={sendMessage}
+        onClose={onClose}
+        loadCounts={() => Promise.resolve({ 'github\u0000https://github.com/': 5 })}
+      />
+    );
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+
+    fireEvent.input(input, { target: { value: 'github' } });
+    await waitFor(() => {
+      expect(screen.getAllByRole('option')[0].textContent).toContain('GitHub');
+    });
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith({ type: 'NAVIGATE', url: 'https://github.com' });
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('keeps the current query as the first Google suggestion after autosuggestions load', async () => {
     const { input } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {

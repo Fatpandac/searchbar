@@ -405,7 +405,9 @@ export function App({
 
     if (event.key === 'Enter') {
       event.preventDefault();
-      void commit(mode === 'google' && !selectedByUser && activeSuggestion?.type !== 'go' ? null : activeSuggestion, event.ctrlKey);
+      // 提交当前高亮项（index 0 通常是「搜索当前输入」的静态建议，
+      // 被 reorderBySelection 提升到顶部的历史项也应直接跳转）。
+      void commit(activeSuggestion, event.ctrlKey);
     }
   };
 

@@ -59,6 +59,12 @@ export function renderOverlay(root: ParentNode, options: OverlayOptions): Overla
   const searchInput = input();
   if (searchInput) {
     searchInput.addEventListener('blur', () => {
+      // 劫持 DocSearch 时它的弹窗会抢焦点，不算用户点到外面。
+      if (document.querySelector('.DocSearch-Container')) {
+        focus();
+        return;
+      }
+
       const shouldIgnoreModeBlur = currentMode === 'history' || currentMode === 'window';
       if (Date.now() < ignoreBlurUntil || shouldIgnoreModeBlur) {
         if (shouldIgnoreModeBlur) {

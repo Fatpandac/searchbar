@@ -19,6 +19,7 @@ import {
   type DefaultOpenTarget
 } from '../shared/settings-storage';
 import { queryChromePages } from '../shared/chrome-pages';
+import { closeDocSearch, hasDocSearch, queryDocSearch } from '../shared/docsearch';
 import {
   loadSelectionCounts,
   recordSelection,
@@ -29,7 +30,9 @@ import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 import { getImmediateSearchEngineModeColor } from './mode-color';
 
-export type Mode = 'google' | 'history' | 'window' | 'engine';
+export type Mode = 'google' | 'history' | 'window' | 'engine' | 'docsearch';
+
+const DOCSEARCH_MODE_COLOR = '#5468ff';
 
 const GOOGLE_MODE_HISTORY_LIMIT = 5;
 
@@ -53,7 +56,8 @@ export function App({
   loadCounts = loadSelectionCounts
 }: AppProps) {
   const [query, setQuery] = useState('');
-  const [mode, setMode] = useState<Mode>('google');
+  // 页面接了 DocSearch 就默认劫持它，Esc 退回 Google。
+  const [mode, setMode] = useState<Mode>(() => (hasDocSearch() ? 'docsearch' : 'google'));
   const [engines, setEngines] = useState<SearchEngine[]>(SEARCH_ENGINES);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -86,6 +90,8 @@ export function App({
     const frame = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(frame);
   }, []);
+
+  useEffect(() => closeDocSearch, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,6 +229,31 @@ export function App({
       };
     }
 
+    if (mode === 'docsearch') {
+      if (!trimmed) {
+        replaceSuggestions([]);
+        return () => {
+          cancelled = true;
+        };
+      }
+
+      const timer = window.setTimeout(() => {
+        void queryDocSearch(trimmed).then((results) => {
+          if (cancelled) {
+            return;
+          }
+
+          replaceSuggestions(results);
+          setError(null);
+        });
+      }, 80);
+
+      return () => {
+        cancelled = true;
+        window.clearTimeout(timer);
+      };
+    }
+
     if (mode === 'engine' && activeEngine) {
       replaceSuggestions(trimmed ? [createSearchEngineSuggestion(activeEngine, trimmed)] : []);
       setError(null);
@@ -268,9 +299,11 @@ export function App({
       ? 'Window'
       : mode === 'history'
         ? 'History'
-        : mode === 'engine' && activeEngine
-          ? activeEngine.name
-          : 'Google';
+        : mode === 'docsearch'
+          ? 'Docs'
+          : mode === 'engine' && activeEngine
+            ? activeEngine.name
+            : 'Google';
   const emptyLabel = useMemo(() => {
     if (mode === 'window') {
       return 'No tabs found in this window';
@@ -280,6 +313,10 @@ export function App({
       return query.trim() ? 'No history found' : 'Start typing to search history';
     }
 
+    if (mode === 'docsearch') {
+      return query.trim() ? 'No docs found' : 'Start typing to search this site docs';
+    }
+
     if (mode === 'engine' && activeEngine) {
       return query.trim() ? `No ${activeEngine.name} search available` : `Start typing to search ${activeEngine.name}`;
     }
@@ -287,7 +324,11 @@ export function App({
     return query.trim() ? 'No Google search available' : 'Start typing to search Google';
   }, [activeEngine, mode, query]);
   const searchBarModeColor =
-    mode === 'engine' && activeEngine ? getImmediateSearchEngineModeColor(activeEngine) : undefined;
+    mode === 'docsearch'
+      ? DOCSEARCH_MODE_COLOR
+      : mode === 'engine' && activeEngine
+        ? getImmediateSearchEngineModeColor(activeEngine)
+        : undefined;
 
   const commit = async (suggestion: Suggestion | null = activeSuggestion, invertOpenTarget = false) => {
     const fallback = query.trim();
@@ -360,7 +401,7 @@ export function App({
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      if (mode === 'history' || mode === 'window') {
+      if (mode === 'history' || mode === 'window' || mode === 'docsearch') {
         returnToGoogle();
         return;
       }

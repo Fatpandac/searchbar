@@ -64,6 +64,7 @@ export function App({
   const [selectedByUser, setSelectedByUser] = useState(false);
   const lastPointerPosition = useRef<{ x: number; y: number } | null>(null);
   const [visible, setVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
@@ -156,14 +157,18 @@ export function App({
   useEffect(() => {
     const trimmed = query.trim();
     let cancelled = false;
+    // 默认不转；走异步的分支在同一轮 effect 里再改成 true（两次 setState 会合并，不会闪）。
+    setLoading(false);
 
     if (mode === 'window') {
+      setLoading(true);
       const timer = window.setTimeout(() => {
         void sendMessage({ type: 'QUERY_TABS', query: trimmed }).then((response) => {
           if (cancelled) {
             return;
           }
 
+          setLoading(false);
           if (response.type === 'TABS') {
             replaceSuggestions(response.results);
             setError(null);
@@ -191,6 +196,7 @@ export function App({
       setError(null);
 
       if (trimmed) {
+        setLoading(true);
         const timer = window.setTimeout(() => {
           void Promise.all([
             sendMessage({ type: 'QUERY_GOOGLE_SUGGESTIONS', query: trimmed }),
@@ -200,6 +206,7 @@ export function App({
               return;
             }
 
+            setLoading(false);
             const googleSuggestions =
               googleResponse.type === 'GOOGLE_SUGGESTIONS' ? googleResponse.results : [];
             const historySuggestions =
@@ -237,12 +244,14 @@ export function App({
         };
       }
 
+      setLoading(true);
       const timer = window.setTimeout(() => {
         void queryDocSearch(trimmed).then((results) => {
           if (cancelled) {
             return;
           }
 
+          setLoading(false);
           replaceSuggestions(results);
           setError(null);
         });
@@ -270,12 +279,14 @@ export function App({
       };
     }
 
+    setLoading(true);
     const timer = window.setTimeout(() => {
       void sendMessage({ type: 'QUERY_HISTORY', query: trimmed }).then((response) => {
         if (cancelled) {
           return;
         }
 
+        setLoading(false);
         if (response.type === 'HISTORY') {
           replaceSuggestions(rankSuggestions(trimmed, response.results));
           setError(null);
@@ -457,6 +468,7 @@ export function App({
       <section
         className="searchbar-panel"
         data-visible={visible}
+        data-loading={loading}
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}

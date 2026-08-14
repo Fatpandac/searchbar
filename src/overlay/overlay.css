@@ -43,6 +43,35 @@
   filter: blur(0);
 }
 
+/* 统一的加载指示：面板顶部一道来回扫的光线，只用伪元素，不加 DOM 节点。 */
+.searchbar-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #0f6bff, transparent);
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: none;
+}
+
+.searchbar-panel[data-loading="true"]::before {
+  opacity: 1;
+  animation: searchbar-sweep 1.1s ease-in-out infinite alternate;
+}
+
+/* 0 = 贴左边，233.33% = 自身宽度的 70/30，刚好贴右边；配 alternate 就是到边折返。 */
+@keyframes searchbar-sweep {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(233.33%);
+  }
+}
+
 .searchbar-input-wrap {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -218,6 +247,10 @@
     color: #f5f7fb;
   }
 
+  .searchbar-panel::before {
+    background: linear-gradient(90deg, transparent, #5b9bff, transparent);
+  }
+
   .searchbar-input-wrap {
     border-bottom-color: rgba(255, 255, 255, 0.1);
   }
@@ -266,5 +299,12 @@
     transition: none;
     transform: translateX(-50%);
     filter: none;
+  }
+
+  /* 不做位移，改成一条静态的细线，仍然能表示「在加载」。 */
+  .searchbar-panel[data-loading="true"]::before {
+    width: 100%;
+    opacity: 0.5;
+    animation: none;
   }
 }

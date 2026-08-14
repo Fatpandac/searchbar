@@ -1050,6 +1050,30 @@ describe('App', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('marks the panel as loading while an async query is in flight', async () => {
+    // google 模式一次会并发发两条消息，全部 resolve 才算加载结束。
+    const pending: ((response: SearchResponse) => void)[] = [];
+    const sendMessage = vi.fn(
+      () => new Promise<SearchResponse>((resolve) => {
+        pending.push(resolve);
+      })
+    );
+    render(<App sendMessage={sendMessage} onClose={vi.fn()} />);
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+    const panel = screen.getByRole('dialog');
+
+    expect(panel.dataset.loading).toBe('false');
+
+    fireEvent.input(input, { target: { value: 'react' } });
+    await waitFor(() => expect(panel.dataset.loading).toBe('true'));
+
+    await waitFor(() => expect(pending.length).toBeGreaterThan(0));
+    for (const resolve of pending) {
+      resolve({ type: 'HISTORY', results: [] });
+    }
+    await waitFor(() => expect(panel.dataset.loading).toBe('false'));
+  });
+
   it('closes on Escape', () => {
     const { input, onClose } = setup(() => ({ type: 'HISTORY', results: [] }));
 

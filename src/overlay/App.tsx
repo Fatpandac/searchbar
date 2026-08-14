@@ -19,7 +19,7 @@ import {
   type DefaultOpenTarget
 } from '../shared/settings-storage';
 import { queryChromePages } from '../shared/chrome-pages';
-import { closeDocSearch, hasDocSearch, queryDocSearch } from '../shared/docsearch';
+import { detectSiteSearch, type SiteSearchProvider } from '../shared/site-search';
 import {
   loadSelectionCounts,
   recordSelection,
@@ -30,11 +30,10 @@ import { SearchBar } from './SearchBar';
 import { SuggestionList } from './SuggestionList';
 import { getImmediateSearchEngineModeColor } from './mode-color';
 
-export type Mode = 'google' | 'history' | 'window' | 'engine' | 'docsearch';
-
-const DOCSEARCH_MODE_COLOR = '#5468ff';
+export type Mode = 'google' | 'history' | 'window' | 'engine' | 'site';
 
 const GOOGLE_MODE_HISTORY_LIMIT = 5;
+const SITE_SEARCH_DEBOUNCE_MS = 200;
 
 export type AppProps = {
   onClose: () => void;
@@ -44,6 +43,7 @@ export type AppProps = {
   loadEngines?: () => Promise<SearchEngine[]>;
   loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
   loadCounts?: () => Promise<SelectionCounts>;
+  detectSite?: () => SiteSearchProvider | null;
 };
 
 export function App({
@@ -53,11 +53,13 @@ export function App({
   sendMessage = sendChromeMessage,
   loadEngines = loadSearchEngines,
   loadDefaultOpenTarget = getDefaultOpenTarget,
-  loadCounts = loadSelectionCounts
+  loadCounts = loadSelectionCounts,
+  detectSite = detectSiteSearch
 }: AppProps) {
   const [query, setQuery] = useState('');
-  // 页面接了 DocSearch 就默认劫持它，Esc 退回 Google。
-  const [mode, setMode] = useState<Mode>(() => (hasDocSearch() ? 'docsearch' : 'google'));
+  // 当前站点有可用的站内搜索（DocSearch / GitHub）就默认走它，Esc 退回 Google。
+  const [siteSearch] = useState<SiteSearchProvider | null>(detectSite);
+  const [mode, setMode] = useState<Mode>(() => (siteSearch ? 'site' : 'google'));
   const [engines, setEngines] = useState<SearchEngine[]>(SEARCH_ENGINES);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -92,7 +94,7 @@ export function App({
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  useEffect(() => closeDocSearch, []);
+  useEffect(() => () => siteSearch?.close?.(), [siteSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,7 +238,7 @@ export function App({
       };
     }
 
-    if (mode === 'docsearch') {
+    if (mode === 'site' && siteSearch) {
       if (!trimmed) {
         replaceSuggestions([]);
         return () => {
@@ -246,7 +248,7 @@ export function App({
 
       setLoading(true);
       const timer = window.setTimeout(() => {
-        void queryDocSearch(trimmed).then((results) => {
+        void siteSearch.query(trimmed).then((results) => {
           if (cancelled) {
             return;
           }
@@ -255,7 +257,7 @@ export function App({
           replaceSuggestions(results);
           setError(null);
         });
-      }, 80);
+      }, SITE_SEARCH_DEBOUNCE_MS);
 
       return () => {
         cancelled = true;
@@ -300,7 +302,7 @@ export function App({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [activeEngine, mode, query, sendMessage]);
+  }, [activeEngine, mode, query, sendMessage, siteSearch]);
 
   const activeSuggestion = suggestions[selectedIndex];
   const shortcutEngine = mode === 'google' ? findSearchEngineShortcut(query, engines) : undefined;
@@ -310,8 +312,8 @@ export function App({
       ? 'Window'
       : mode === 'history'
         ? 'History'
-        : mode === 'docsearch'
-          ? 'Docs'
+        : mode === 'site' && siteSearch
+          ? siteSearch.label
           : mode === 'engine' && activeEngine
             ? activeEngine.name
             : 'Google';
@@ -324,8 +326,10 @@ export function App({
       return query.trim() ? 'No history found' : 'Start typing to search history';
     }
 
-    if (mode === 'docsearch') {
-      return query.trim() ? 'No docs found' : 'Start typing to search this site docs';
+    if (mode === 'site' && siteSearch) {
+      return query.trim()
+        ? `No ${siteSearch.label} results`
+        : `Start typing to search ${siteSearch.label}`;
     }
 
     if (mode === 'engine' && activeEngine) {
@@ -333,10 +337,10 @@ export function App({
     }
 
     return query.trim() ? 'No Google search available' : 'Start typing to search Google';
-  }, [activeEngine, mode, query]);
+  }, [activeEngine, mode, query, siteSearch]);
   const searchBarModeColor =
-    mode === 'docsearch'
-      ? DOCSEARCH_MODE_COLOR
+    mode === 'site' && siteSearch
+      ? siteSearch.color
       : mode === 'engine' && activeEngine
         ? getImmediateSearchEngineModeColor(activeEngine)
         : undefined;
@@ -412,7 +416,7 @@ export function App({
 
     if (event.key === 'Escape') {
       event.preventDefault();
-      if (mode === 'history' || mode === 'window' || mode === 'docsearch') {
+      if (mode === 'history' || mode === 'window' || mode === 'site') {
         returnToGoogle();
         return;
       }

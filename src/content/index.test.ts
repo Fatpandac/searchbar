@@ -370,7 +370,9 @@ describe('createContentController', () => {
     expect(handleInputEvent).not.toHaveBeenCalled();
   });
 
-  it('ignores fallback hotkey inside editable targets', () => {
+  // 页面自己的 Cmd+K（GitHub 命令面板）会把焦点抢进输入框，
+  // 早期实现在这种情况下直接放弃开关键，导致 overlay 再也召不出来。
+  it('summons from editable targets so page shortcuts cannot block it', () => {
     const controller = trackController(createContentController({ renderOverlay: vi.fn(), destroyOverlay: vi.fn() }));
     const input = document.createElement('input');
     document.body.append(input);
@@ -382,6 +384,63 @@ describe('createContentController', () => {
         ctrlKey: true,
         bubbles: true,
         cancelable: true
+      })
+    );
+
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(1);
+  });
+
+  // 带焦点移除 shadow host 后，Chrome 会让文档没有焦点元素，整页键盘全死。
+  it('hands focus back to the page after tearing down', () => {
+    const controller = trackController(
+      createContentController({
+        renderOverlay: vi.fn((root) => {
+          const overlayInput = document.createElement('input');
+          root.appendChild(overlayInput);
+          overlayInput.focus();
+          return { focus: vi.fn(), handleKeyboardEvent: vi.fn() };
+        }),
+        destroyOverlay: vi.fn()
+      })
+    );
+
+    controller.start();
+    controller.mount();
+    const focus = vi.spyOn(document.body, 'focus');
+
+    controller.unmount();
+
+    expect(focus).toHaveBeenCalled();
+    // 临时 tabindex 必须擦干净，不能给页面留下属性。
+    expect(document.body.hasAttribute('tabindex')).toBe(false);
+  });
+
+  // 焦点在 overlay 自己的输入框里时，target 会被 retarget 成 shadow host，
+  // 早期实现会当成「来自 overlay」早退，于是 Cmd+K 关不掉。
+  it('dismisses with the hotkey while focus sits inside the overlay', () => {
+    let overlayInput: HTMLInputElement | undefined;
+    const controller = trackController(
+      createContentController({
+        renderOverlay: vi.fn((root) => {
+          overlayInput = document.createElement('input');
+          root.appendChild(overlayInput);
+          return { focus: vi.fn(), handleKeyboardEvent: vi.fn() };
+        }),
+        destroyOverlay: vi.fn()
+      })
+    );
+
+    controller.start();
+    controller.mount();
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(1);
+
+    overlayInput?.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+        composed: true
       })
     );
 

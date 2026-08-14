@@ -39,6 +39,32 @@ const OWNED_INPUT_EVENT_TYPES = [
   'paste'
 ] as const;
 
+/**
+ * 移除带焦点的 shadow host 后，Chrome 会让文档处于「没有焦点元素」的状态，
+ * 整页从此收不到任何键盘事件，连普通字母都丢，必须刷页。
+ * body 默认不可聚焦，所以临时给个 tabindex 把焦点收回来，再把属性擦掉。
+ * blur() 没用，它只会把焦点变成「没有」，正是这个坏状态本身。
+ */
+function restorePageFocus(): void {
+  const body = document.body;
+  const active = document.activeElement;
+
+  if (!body || (active instanceof HTMLElement && active !== body)) {
+    return;
+  }
+
+  const hadTabIndex = body.hasAttribute('tabindex');
+  if (!hadTabIndex) {
+    body.tabIndex = -1;
+  }
+
+  body.focus({ preventScroll: true });
+
+  if (!hadTabIndex) {
+    body.removeAttribute('tabindex');
+  }
+}
+
 export function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) {
     return false;
@@ -69,6 +95,7 @@ export function createContentController(options: ContentControllerOptions = {}) 
     state.host.remove();
     state = null;
     window.__searchbar_mounted__ = false;
+    restorePageFocus();
   };
 
   const mount = () => {
@@ -109,11 +136,21 @@ export function createContentController(options: ContentControllerOptions = {}) 
 
     const isKeyDown = event instanceof KeyboardEvent && event.type === 'keydown';
     const isSummon =
-      isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey);
-    
-    // Alternative activation: Cmd+Shift+K (works even when Cmd+K is taken by the page)
-    const isAlternativeSummon =
-      isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && event.shiftKey;
+      isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey;
+
+    // 开关键必须排在所有早退之前无条件抢占：
+    // - 焦点在页面输入框时（如 GitHub 命令面板），不能被 isEditableTarget 丢掉，否则召不出来；
+    // - 焦点在 overlay 自己里时，不能被 isEventFromOverlay 丢掉，否则关不掉。
+    // 我们是 document_start 注册的 capture 监听器，比页面自己的快捷键早，抢得到。
+    if (isSummon) {
+      markCapturedInputEvent(event);
+      if (event.cancelable) {
+        event.preventDefault();
+      }
+      event.stopImmediatePropagation();
+      toggle();
+      return;
+    }
 
     if (state) {
       if (isEventFromOverlay(event, state.host)) {
@@ -125,11 +162,6 @@ export function createContentController(options: ContentControllerOptions = {}) 
         event.preventDefault();
       }
       event.stopImmediatePropagation();
-      if (isSummon && !event.altKey) {
-        toggle();
-        return;
-      }
-
       state.overlay?.focus();
 
       if (event.type === 'compositionstart') {
@@ -157,23 +189,7 @@ export function createContentController(options: ContentControllerOptions = {}) 
       return;
     }
 
-    // Alternative activation shortcut bypasses editable element check
-    if (isAlternativeSummon && !event.altKey) {
-      markCapturedInputEvent(event);
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      toggle();
-      return;
-    }
-
-    if (!isKeyDown || !isSummon || event.altKey || event.shiftKey || isEditableTarget(event.target)) {
-      return;
-    }
-
-    markCapturedInputEvent(event);
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    toggle();
+    // 关闭态下除了开关键不拦截任何输入，页面自己的键位照常工作。
   };
 
   const onMessage = (message: SearchRequest) => {

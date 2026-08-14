@@ -91,6 +91,19 @@
   font-weight: 700;
   line-height: 1;
   text-align: center;
+  animation: searchbar-mode-in 180ms ease-out;
+}
+
+/* 横向滑入，跟 Tab 往前推一档的方向一致。 */
+@keyframes searchbar-mode-in {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .searchbar-input-slot {
@@ -305,6 +318,10 @@
   .searchbar-panel[data-loading="true"]::before {
     width: 100%;
     opacity: 0.5;
+    animation: none;
+  }
+
+  .searchbar-mode {
     animation: none;
   }
 }

@@ -13,7 +13,12 @@ type SearchBarProps = {
 export function SearchBar({ query, modeLabel, modeColor, hint, inputRef, onInput, onKeyDown }: SearchBarProps) {
   return (
     <label className="searchbar-input-wrap">
-      <span className="searchbar-mode" style={modeColor ? { background: modeColor } : undefined}>
+      {/* key 跟着 label 走：切模式时重建节点，CSS 入场动画就会重放一次。 */}
+      <span
+        key={modeLabel}
+        className="searchbar-mode"
+        style={modeColor ? { background: modeColor } : undefined}
+      >
         {modeLabel}
       </span>
       <span className="searchbar-input-slot">

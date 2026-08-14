@@ -57,9 +57,9 @@ export function App({
   detectSite = detectSiteSearch
 }: AppProps) {
   const [query, setQuery] = useState('');
-  // 当前站点有可用的站内搜索（DocSearch / GitHub）就默认走它，Esc 退回 Google。
+  // 站内搜索（DocSearch / GitHub）不抢默认，统一从 Google 开场，靠 Tab 切进去。
   const [siteSearch] = useState<SiteSearchProvider | null>(detectSite);
-  const [mode, setMode] = useState<Mode>(() => (siteSearch ? 'site' : 'google'));
+  const [mode, setMode] = useState<Mode>('google');
   const [engines, setEngines] = useState<SearchEngine[]>(SEARCH_ENGINES);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -305,18 +305,38 @@ export function App({
   }, [activeEngine, mode, query, sendMessage, siteSearch]);
 
   const activeSuggestion = suggestions[selectedIndex];
+  // Tab 往前、Shift+Tab 往后；没站内搜索时退化成原来的 google/window/history 三档。
+  const modeCycle = useMemo<Mode[]>(
+    () => (siteSearch ? ['google', 'site', 'window', 'history'] : ['google', 'window', 'history']),
+    [siteSearch]
+  );
+  const labelForMode = useCallback(
+    (target: Mode) =>
+      target === 'window'
+        ? 'Window'
+        : target === 'history'
+          ? 'History'
+          : target === 'site' && siteSearch
+            ? siteSearch.label
+            : target === 'engine' && activeEngine
+              ? activeEngine.name
+              : 'Google',
+    [activeEngine, siteSearch]
+  );
+  // engine 模式不在循环里，indexOf 得 -1，Tab 回到 google。
+  const stepMode = useCallback(
+    (step: number): Mode =>
+      modeCycle[(modeCycle.indexOf(mode) + step + modeCycle.length) % modeCycle.length],
+    [mode, modeCycle]
+  );
   const shortcutEngine = mode === 'google' ? findSearchEngineShortcut(query, engines) : undefined;
-  const inputHint = shortcutEngine ? `Tab 搜索 ${shortcutEngine.name}` : undefined;
-  const modeLabel =
-    mode === 'window'
-      ? 'Window'
-      : mode === 'history'
-        ? 'History'
-        : mode === 'site' && siteSearch
-          ? siteSearch.label
-          : mode === 'engine' && activeEngine
-            ? activeEngine.name
-            : 'Google';
+  // 快捷词提示优先；模式循环提示只在空输入时出现，不挡着正在敲的字。
+  const inputHint = shortcutEngine
+    ? `Tab 搜索 ${shortcutEngine.name}`
+    : query.trim()
+      ? undefined
+      : `Tab → ${labelForMode(stepMode(1))}`;
+  const modeLabel = labelForMode(mode);
   const emptyLabel = useMemo(() => {
     if (mode === 'window') {
       return 'No tabs found in this window';
@@ -425,22 +445,15 @@ export function App({
       return;
     }
 
-    if (event.key === 'Tab' && event.shiftKey) {
-      event.preventDefault();
-      setMode('history');
-      setActiveEngine(null);
-      return;
-    }
-
     if (event.key === 'Tab') {
       event.preventDefault();
-      const engine = findSearchEngineShortcut(query, engines);
+      const engine = event.shiftKey ? undefined : findSearchEngineShortcut(query, engines);
       if (engine) {
         activateEngine(engine);
         return;
       }
 
-      setMode('window');
+      setMode(stepMode(event.shiftKey ? -1 : 1));
       setActiveEngine(null);
       return;
     }

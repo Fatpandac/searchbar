@@ -1074,6 +1074,35 @@ describe('App', () => {
     await waitFor(() => expect(panel.dataset.loading).toBe('false'));
   });
 
+  it('cycles google -> site -> window -> history with Tab and hints the next stop', async () => {
+    const site = {
+      id: 'github',
+      label: 'GitHub',
+      color: '#24292f',
+      match: () => true,
+      query: async () => []
+    };
+    const sendMessage = vi.fn((message: SearchRequest) =>
+      Promise.resolve<SearchResponse>(
+        message.type === 'QUERY_TABS' ? { type: 'TABS', results: [] } : { type: 'HISTORY', results: [] }
+      )
+    );
+    render(<App sendMessage={sendMessage} onClose={vi.fn()} detectSite={() => site} />);
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+
+    // 站内搜索不抢默认，从 Google 开场。
+    expect(screen.getByText('Tab → GitHub')).toBeTruthy();
+
+    for (const next of ['Tab → Window', 'Tab → History', 'Tab → Google', 'Tab → GitHub']) {
+      fireEvent.keyDown(input, { key: 'Tab' });
+      expect(await screen.findByText(next)).toBeTruthy();
+    }
+
+    // 回到 Google 后 Shift+Tab 往回走，落在循环末尾的 History。
+    fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
+    expect(await screen.findByText('Tab → Google')).toBeTruthy();
+  });
+
   it('closes on Escape', () => {
     const { input, onClose } = setup(() => ({ type: 'HISTORY', results: [] }));
 

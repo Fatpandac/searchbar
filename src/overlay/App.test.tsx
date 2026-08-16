@@ -13,19 +13,22 @@ function setup(
 ) {
   const sendMessage = vi.fn((message: SearchRequest) => Promise.resolve(responder(message)));
   const onClose = vi.fn();
-  render(<App sendMessage={sendMessage} onClose={onClose} {...options} />);
+  const navigate = vi.fn();
+  render(<App sendMessage={sendMessage} onClose={onClose} navigateLocally={navigate} {...options} />);
   const input = screen.getByRole('combobox') as HTMLInputElement;
 
-  return { input, sendMessage, onClose };
+  return { input, sendMessage, onClose, navigate };
 }
 
 function setupWithEngines(responder: (message: SearchRequest) => Promise<SearchResponse> | SearchResponse) {
   const sendMessage = vi.fn((message: SearchRequest) => Promise.resolve(responder(message)));
   const onClose = vi.fn();
+  const navigate = vi.fn();
   render(
     <App
       sendMessage={sendMessage}
       onClose={onClose}
+      navigateLocally={navigate}
       loadEngines={() =>
         Promise.resolve([
           {
@@ -40,7 +43,7 @@ function setupWithEngines(responder: (message: SearchRequest) => Promise<SearchR
   );
   const input = screen.getByRole('combobox') as HTMLInputElement;
 
-  return { input, sendMessage, onClose };
+  return { input, sendMessage, onClose, navigate };
 }
 
 describe('App', () => {
@@ -57,17 +60,14 @@ describe('App', () => {
   });
 
   it('opens URL-like input directly on Enter without selecting a suggestion', async () => {
-    const { input, sendMessage, onClose } = setup(() => ({ type: 'NAV_OK' }));
+    const { input, sendMessage, onClose, navigate } = setup(() => ({ type: 'NAV_OK' }));
 
     fireEvent.input(input, { target: { value: 'github.com/foo' } });
     await screen.findByText('Go to github.com/foo');
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://github.com/foo'
-      });
+      expect(navigate).toHaveBeenCalledWith('https://github.com/foo');
     });
     expect(onClose).toHaveBeenCalled();
     await waitFor(() => {
@@ -91,7 +91,10 @@ describe('App', () => {
   });
 
   it('clears the navigating state when navigation fails', async () => {
-    const { input } = setup(() => ({ type: 'ERROR', message: 'nope' }));
+    const { input } = setup(
+      () => ({ type: 'ERROR', message: 'nope' }),
+      { loadDefaultOpenTarget: () => Promise.resolve('newTab') }
+    );
     const panel = document.querySelector('.searchbar-panel') as HTMLElement;
 
     fireEvent.input(input, { target: { value: 'github.com/foo' } });
@@ -103,7 +106,7 @@ describe('App', () => {
   });
 
   it('defaults to Google search and navigates the query on Enter without querying history', async () => {
-    const { input, sendMessage, onClose } = setup((message) => {
+    const { input, sendMessage, onClose, navigate } = setup((message) => {
       if (message.type === 'QUERY_HISTORY') {
         return { type: 'HISTORY', results: [] };
       }
@@ -115,10 +118,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://www.google.com/search?q=react+hooks'
-      });
+      expect(navigate).toHaveBeenCalledWith('https://www.google.com/search?q=react+hooks');
     });
     expect(sendMessage).not.toHaveBeenCalledWith({ type: 'QUERY_HISTORY', query: 'react hooks' });
     expect(onClose).toHaveBeenCalled();
@@ -169,10 +169,7 @@ describe('App', () => {
     fireEvent.keyDown(newTab.input, { key: 'Enter', ctrlKey: true });
 
     await waitFor(() => {
-      expect(newTab.sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://www.google.com/search?q=react+hooks'
-      });
+      expect(newTab.navigate).toHaveBeenCalledWith('https://www.google.com/search?q=react+hooks');
     });
   });
 
@@ -291,7 +288,7 @@ describe('App', () => {
   });
 
   it('keeps direct Google search as the default Enter action after autosuggestions load', async () => {
-    const { input, sendMessage, onClose } = setup((message) => {
+    const { input, sendMessage, onClose, navigate } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
         return {
           type: 'GOOGLE_SUGGESTIONS',
@@ -313,10 +310,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://www.google.com/search?q=react'
-      });
+      expect(navigate).toHaveBeenCalledWith('https://www.google.com/search?q=react');
     });
     expect(onClose).toHaveBeenCalled();
   });
@@ -335,10 +329,12 @@ describe('App', () => {
       )
     );
     const onClose = vi.fn();
+    const navigate = vi.fn();
     render(
       <App
         sendMessage={sendMessage}
         onClose={onClose}
+        navigateLocally={navigate}
         loadCounts={() => Promise.resolve({ 'github\u0000https://github.com/': 5 })}
       />
     );
@@ -352,7 +348,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({ type: 'NAVIGATE', url: 'https://github.com' });
+      expect(navigate).toHaveBeenCalledWith('https://github.com');
     });
     expect(onClose).toHaveBeenCalled();
   });
@@ -385,7 +381,7 @@ describe('App', () => {
   });
 
   it('shows matching history entries together with Google autosuggestions in default search mode', async () => {
-    const { input, sendMessage } = setup((message) => {
+    const { input, sendMessage, navigate } = setup((message) => {
       if (message.type === 'QUERY_GOOGLE_SUGGESTIONS') {
         return {
           type: 'GOOGLE_SUGGESTIONS',
@@ -432,10 +428,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://reactrouter.com'
-      });
+      expect(navigate).toHaveBeenCalledWith('https://reactrouter.com');
     });
   });
 
@@ -698,7 +691,7 @@ describe('App', () => {
   });
 
   it('uses keyword Tab to search GitHub', async () => {
-    const { input, sendMessage, onClose } = setup(() => ({ type: 'NAV_OK' }));
+    const { input, sendMessage, onClose, navigate } = setup(() => ({ type: 'NAV_OK' }));
 
     fireEvent.input(input, { target: { value: 'gh' } });
     fireEvent.keyDown(input, { key: 'Tab' });
@@ -711,10 +704,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://github.com/search?q=react+hooks'
-      });
+      expect(navigate).toHaveBeenCalledWith('https://github.com/search?q=react+hooks');
     });
     expect(onClose).toHaveBeenCalled();
   });
@@ -762,10 +752,7 @@ describe('App', () => {
     fireEvent.keyDown(youtube.input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(youtube.sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://www.youtube.com/results?search_query=lo+fi'
-      });
+      expect(youtube.navigate).toHaveBeenCalledWith('https://www.youtube.com/results?search_query=lo+fi');
     });
 
     cleanup();
@@ -776,15 +763,12 @@ describe('App', () => {
     fireEvent.keyDown(spotify.input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(spotify.sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://open.spotify.com/search/daft+punk'
-      });
+      expect(spotify.navigate).toHaveBeenCalledWith('https://open.spotify.com/search/daft+punk');
     });
   });
 
   it('uses configured custom quicksearch engines', async () => {
-    const { input, sendMessage } = setupWithEngines(() => ({ type: 'NAV_OK' }));
+    const { input, navigate } = setupWithEngines(() => ({ type: 'NAV_OK' }));
 
     fireEvent.input(input, { target: { value: 'li' } });
 
@@ -795,10 +779,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     await waitFor(() => {
-      expect(sendMessage).toHaveBeenCalledWith({
-        type: 'NAVIGATE',
-        url: 'https://linear.app/search?q=bug+report'
-      });
+      expect(navigate).toHaveBeenCalledWith('https://linear.app/search?q=bug+report');
     });
   });
 
@@ -1162,6 +1143,34 @@ describe('App', () => {
     // 回到 Google 后 Shift+Tab 往回走，落在循环末尾的 History。
     fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
     expect(await screen.findByText('Tab → Search')).toBeTruthy();
+  });
+
+  it('closes immediately on Enter without waiting for the navigation round trip', async () => {
+    // 新标签页打开走背景页；回包永不到达，模拟 service worker 忙碌/冷启动，乐观关闭不应被它卡住。
+    const sendMessage = vi.fn(
+      (message: SearchRequest): Promise<SearchResponse> =>
+        message.type === 'NAVIGATE' ? new Promise(() => {}) : Promise.resolve({ type: 'HISTORY', results: [] })
+    );
+    const onClose = vi.fn();
+    render(
+      <App
+        sendMessage={sendMessage}
+        onClose={onClose}
+        loadDefaultOpenTarget={() => Promise.resolve('newTab')}
+      />
+    );
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+
+    fireEvent.input(input, { target: { value: 'example.com' } });
+    await screen.findByText('Go to example.com');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'NAVIGATE', newTab: true })
+      );
+    });
   });
 
   it('closes on Escape', () => {

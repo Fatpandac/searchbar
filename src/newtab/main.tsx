@@ -1,6 +1,29 @@
 import { render } from 'preact';
 import { App } from '../overlay/App';
+import type { SearchRequest, SearchResponse } from '../shared/messages';
 import '../overlay/overlay.css';
+
+/**
+ * 新标签页是扩展页，自己就有 tabs API 权限：
+ * chrome:// 等需要 tabs.update 的跳转直接在本页完成，不绕 service worker（省一跳 IPC + 可能的冷启动）。
+ * 其余消息（查询、OPEN_TAB）仍走背景页。
+ */
+export async function sendMessageFromExtensionPage(message: SearchRequest): Promise<SearchResponse> {
+  if (message.type === 'NAVIGATE') {
+    if (message.newTab) {
+      await chrome.tabs.create({ url: message.url });
+      return { type: 'NAV_OK' };
+    }
+
+    const tab = await chrome.tabs.getCurrent();
+    if (tab?.id !== undefined) {
+      await chrome.tabs.update(tab.id, { url: message.url });
+      return { type: 'NAV_OK' };
+    }
+  }
+
+  return chrome.runtime.sendMessage(message);
+}
 
 /**
  * Cmd+T 后 Chrome 把键盘焦点留在 omnibox，页面加载早期的 focus() 会被它盖掉。
@@ -28,6 +51,13 @@ if (root) {
   };
 
   // 新标签页本身就是空白页，Enter 直接在当前标签页跳转；Ctrl+Enter 仍可反向开新标签页。
-  render(<App onClose={refocus} loadDefaultOpenTarget={() => Promise.resolve('currentTab')} />, root);
+  render(
+    <App
+      onClose={refocus}
+      sendMessage={sendMessageFromExtensionPage}
+      loadDefaultOpenTarget={() => Promise.resolve('currentTab')}
+    />,
+    root
+  );
   grabFocusFromOmnibox();
 }

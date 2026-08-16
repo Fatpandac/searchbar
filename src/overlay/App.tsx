@@ -48,6 +48,7 @@ export type AppProps = {
   loadVimMode?: () => Promise<boolean>;
   loadCounts?: () => Promise<SelectionCounts>;
   detectSite?: () => SiteSearchProvider | null;
+  navigateLocally?: (url: string) => void;
 };
 
 export function App({
@@ -59,7 +60,8 @@ export function App({
   loadDefaultOpenTarget = getDefaultOpenTarget,
   loadVimMode = getVimMode,
   loadCounts = loadSelectionCounts,
-  detectSite = detectSiteSearch
+  detectSite = detectSiteSearch,
+  navigateLocally = (url) => window.location.assign(url)
 }: AppProps) {
   const [query, setQuery] = useState('');
   // 站内搜索（DocSearch / GitHub）不抢默认，统一从 Google 开场，靠 Tab 切进去。
@@ -391,7 +393,7 @@ export function App({
         ? getImmediateSearchEngineModeColor(activeEngine)
         : undefined;
 
-  const commit = async (suggestion: Suggestion | null = activeSuggestion, invertOpenTarget = false) => {
+  const commit = (suggestion: Suggestion | null = activeSuggestion, invertOpenTarget = false) => {
     const fallback = query.trim();
     const openInNewTab = invertOpenTarget ? defaultOpenTarget === 'currentTab' : defaultOpenTarget === 'newTab';
 
@@ -401,10 +403,10 @@ export function App({
 
     setNavigating(true);
 
-    const response =
+    const request: SearchRequest =
       suggestion?.type === 'tab'
-        ? await sendMessage({ type: 'OPEN_TAB', tabId: suggestion.tabId })
-        : await sendMessage({
+        ? { type: 'OPEN_TAB', tabId: suggestion.tabId }
+        : {
             type: 'NAVIGATE',
             url:
               suggestion?.url ??
@@ -412,13 +414,33 @@ export function App({
                 ? createSearchEngineSuggestion(activeEngine, fallback).url
                 : createGoogleSearchSuggestion(fallback).url),
             ...(openInNewTab ? { newTab: true } : {})
-          });
+          };
 
-    if (response.type === 'ERROR') {
-      setNavigating(false);
-      setError(response.message);
+    // 当前页打开普通 URL 不需要任何权限，页面自己跳转零延迟；
+    // 只有 chrome:// 和新标签页打开需要经过 service worker（tabs API 权限）。
+    if (request.type === 'NAVIGATE' && !request.newTab && /^(https?|file):\/\//i.test(request.url)) {
+      if (suggestion) {
+        void recordSelection(query, suggestion.url, selectionCounts.current);
+      }
+
+      navigateLocally(request.url);
+      setQuery('');
+      onClose();
       return;
     }
+
+    // 乐观关闭：不等背景页往返（service worker 冷启动/忙碌时这一来回有可感延迟）。
+    // 失败时 setError 在已卸载的 overlay 上是 no-op，新标签页（overlay 常驻）仍能看到错误。
+    void sendMessage(request)
+      .then((response) => {
+        if (response.type === 'ERROR') {
+          setNavigating(false);
+          setError(response.message);
+        }
+      })
+      .catch(() => {
+        setNavigating(false);
+      });
 
     if (suggestion) {
       void recordSelection(query, suggestion.url, selectionCounts.current);

@@ -35,6 +35,8 @@ import { getImmediateSearchEngineModeColor } from './mode-color';
 export type Mode = 'google' | 'history' | 'window' | 'engine' | 'site';
 
 const GOOGLE_MODE_HISTORY_LIMIT = 5;
+// 清单扩大后泛化词（如 "settings"）能命中十几条，限幅免得挤掉 Google/历史建议。
+const GOOGLE_MODE_CHROME_PAGES_LIMIT = 3;
 const SITE_SEARCH_DEBOUNCE_MS = 200;
 
 export type AppProps = {
@@ -213,7 +215,9 @@ export function App({
           ? createGoToSuggestion(trimmed)
           : createGoogleSearchSuggestion(trimmed)
         : null;
-      const chromeSuggestions = trimmed ? queryChromePages(trimmed) : [];
+      const chromeSuggestions = trimmed
+        ? queryChromePages(trimmed).slice(0, GOOGLE_MODE_CHROME_PAGES_LIMIT)
+        : [];
       const baseSuggestions = staticSuggestion ? [staticSuggestion, ...chromeSuggestions] : chromeSuggestions;
       replaceSuggestions(baseSuggestions);
       setError(null);

@@ -121,7 +121,7 @@ describe('renderOverlay', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
 
     destroyOverlay(root);
@@ -154,7 +154,7 @@ describe('renderOverlay', () => {
       })
     );
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
     input.dispatchEvent(new FocusEvent('blur'));
 
@@ -186,7 +186,7 @@ describe('renderOverlay', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
 
     destroyOverlay(root);
@@ -214,7 +214,7 @@ describe('renderOverlay', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
 
     destroyOverlay(root);
@@ -250,7 +250,7 @@ describe('renderOverlay', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
 
     destroyOverlay(root);
@@ -287,7 +287,7 @@ describe('renderOverlay', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
 
     destroyOverlay(root);
@@ -322,7 +322,7 @@ describe('renderOverlay', () => {
 
     expect(onClose).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(root.textContent).toContain('Google');
+      expect(root.textContent).toContain('Search');
     });
 
     destroyOverlay(root);

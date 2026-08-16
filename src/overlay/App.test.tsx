@@ -1045,7 +1045,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.getAllByText('Google').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Search').length).toBeGreaterThan(0);
     });
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -1076,7 +1076,7 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Escape' });
 
     await waitFor(() => {
-      expect(screen.getAllByText('Google').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Search').length).toBeGreaterThan(0);
     });
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -1124,14 +1124,14 @@ describe('App', () => {
     // 站内搜索不抢默认，从 Google 开场。
     expect(screen.getByText('Tab → GitHub')).toBeTruthy();
 
-    for (const next of ['Tab → Window', 'Tab → History', 'Tab → Google', 'Tab → GitHub']) {
+    for (const next of ['Tab → Window', 'Tab → History', 'Tab → Search', 'Tab → GitHub']) {
       fireEvent.keyDown(input, { key: 'Tab' });
       expect(await screen.findByText(next)).toBeTruthy();
     }
 
     // 回到 Google 后 Shift+Tab 往回走，落在循环末尾的 History。
     fireEvent.keyDown(input, { key: 'Tab', shiftKey: true });
-    expect(await screen.findByText('Tab → Google')).toBeTruthy();
+    expect(await screen.findByText('Tab → Search')).toBeTruthy();
   });
 
   it('closes on Escape', () => {

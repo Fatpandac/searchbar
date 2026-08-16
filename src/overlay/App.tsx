@@ -339,7 +339,8 @@ export function App({
             ? siteSearch.label
             : target === 'engine' && activeEngine
               ? activeEngine.name
-              : 'Google',
+              : // 默认模式聚合 Google、历史、chrome:// 页和 URL 直达，叫 Search 才不擒。
+                'Search',
     [activeEngine, siteSearch]
   );
   // engine 模式不在循环里，indexOf 得 -1，Tab 回到 google。
@@ -375,7 +376,7 @@ export function App({
       return query.trim() ? `No ${activeEngine.name} search available` : `Start typing to search ${activeEngine.name}`;
     }
 
-    return query.trim() ? 'No Google search available' : 'Start typing to search Google';
+    return query.trim() ? 'No results' : 'Start typing to search';
   }, [activeEngine, mode, query, siteSearch]);
   const searchBarModeColor =
     mode === 'site' && siteSearch

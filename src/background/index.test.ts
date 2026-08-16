@@ -132,6 +132,34 @@ describe('createMessageHandler', () => {
     });
   });
 
+  it('matches tabs regardless of word order in the query', async () => {
+    const api = chromeApi();
+    api.tabs.query.mockResolvedValue([
+      { id: 1, windowId: 1, title: 'Show HackerNews', url: 'https://news.ycombinator.com/show' },
+      { id: 2, windowId: 1, title: 'Docs', url: 'https://example.com' }
+    ]);
+    const sendResponse = vi.fn();
+
+    await createMessageHandler(asBackgroundApi(api))(
+      { type: 'QUERY_TABS', query: 'hackernews show' },
+      { tab: { windowId: 1 } as chrome.tabs.Tab },
+      sendResponse
+    );
+
+    expect(sendResponse).toHaveBeenCalledWith({
+      type: 'TABS',
+      results: [
+        {
+          type: 'tab',
+          tabId: 1,
+          windowId: 1,
+          title: 'Show HackerNews',
+          url: 'https://news.ycombinator.com/show'
+        }
+      ]
+    });
+  });
+
   it('returns all matching tabs without truncating to 25 results', async () => {
     const api = chromeApi();
     api.tabs.query.mockResolvedValue(

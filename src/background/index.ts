@@ -1,4 +1,4 @@
-import { Fzf } from 'fzf';
+import { extendedMatch, Fzf } from 'fzf';
 import type {
   HistoryResult,
   SearchRequest,
@@ -174,7 +174,12 @@ function queryTabs(tabs: QueryableTab[], query: string): QueryableTab[] {
     return tabs;
   }
 
-  return new Fzf(tabs, { selector: selectorForTab }).find(query).map((entry) => entry.item);
+  // extendedMatch 才是 fzf CLI 语义：按空格拆词、各词无序 AND 匹配；
+  // 默认 basicMatch 把整个查询（含空格）当一条有序字符序列，
+  // 导致 "hackernews show" 匹配不到 "Show HackerNews"。
+  return new Fzf(tabs, { selector: selectorForTab, match: extendedMatch })
+    .find(query)
+    .map((entry) => entry.item);
 }
 
 function selectorForTab(tab: QueryableTab): string {

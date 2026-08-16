@@ -116,7 +116,8 @@ function faviconFor(
     return '>';
   }
 
-  if (suggestion.type === 'search') {
+  // 无 provider = 纯 Google 搜索建议；带 provider（DocSearch/GitHub/自定义引擎）用结果站点的 favicon。
+  if (suggestion.type === 'search' && !suggestion.provider) {
     return 'G';
   }
 
@@ -131,7 +132,11 @@ function faviconFor(
 }
 
 function shouldRequestWebsiteFavicon(suggestion: Suggestion): boolean {
-  return suggestion.type === 'history' || suggestion.type === 'tab';
+  return (
+    suggestion.type === 'history' ||
+    suggestion.type === 'tab' ||
+    (suggestion.type === 'search' && Boolean(suggestion.provider))
+  );
 }
 
 function faviconUrlFor(suggestion: Suggestion): string {

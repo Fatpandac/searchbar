@@ -23,6 +23,9 @@
     "type": "module"
   },
   "options_page": "src/options/index.html",
+  "chrome_url_overrides": {
+    "newtab": "src/newtab/index.html"
+  },
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*", "file://*/*"],

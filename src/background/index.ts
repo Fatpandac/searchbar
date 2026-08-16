@@ -409,8 +409,31 @@ function dedupeSearchResults(results: SearchResult[]): SearchResult[] {
   });
 }
 
+// Cmd+T 建的空白标签页里 omnibox 独占键盘焦点，页面 focus() 抢不走（Chrome 特意保护，
+// 重定向也没用）。由扩展自己 create 的标签页焦点才落在页面内容上，
+// 所以用新建一个同位置标签页 + 关掉原标签页来替换。
+export function createNewTabRedirect(
+  tabs: Pick<typeof chrome.tabs, 'create' | 'remove'>,
+  getURL: (path: string) => string
+) {
+  return (tab: Pick<chrome.tabs.Tab, 'id' | 'pendingUrl' | 'url' | 'index' | 'windowId'>) => {
+    if (tab.id === undefined || (tab.pendingUrl ?? tab.url) !== 'chrome://newtab/') {
+      return;
+    }
+
+    const originalTabId = tab.id;
+    void tabs
+      .create({ url: getURL('src/newtab/index.html'), index: tab.index, windowId: tab.windowId })
+      .then(() => tabs.remove(originalTabId));
+  };
+}
+
 export function registerBackground(chromeApi: ChromeApi): void {
   const handler = createMessageHandler(chromeApi);
+
+  chromeApi.tabs.onCreated.addListener(
+    createNewTabRedirect(chromeApi.tabs, (path) => chromeApi.runtime.getURL(path))
+  );
 
   chromeApi.runtime.onMessage.addListener((message: SearchRequest, sender, sendResponse) => {
     void handler(message, sender, sendResponse);

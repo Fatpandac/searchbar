@@ -9,4 +9,8 @@ describe('manifest content script timing', () => {
   it('declares an options page for quicksearch settings', () => {
     expect(manifest.options_page).toBe('src/options/index.html');
   });
+
+  it('overrides the new tab page so the search bar is available after Cmd+T', () => {
+    expect(manifest.chrome_url_overrides?.newtab).toBe('src/newtab/index.html');
+  });
 });

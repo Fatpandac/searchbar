@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type BackgroundChromeApi, createMessageHandler, findIconHref } from './index';
+import { type BackgroundChromeApi, createMessageHandler, createNewTabRedirect, findIconHref } from './index';
 
 const chromeApi = () => ({
   history: {
@@ -294,5 +294,27 @@ describe('createMessageHandler', () => {
     expect(api.tabs.update).toHaveBeenCalledWith(3, { active: true });
     expect(api.windows.update).toHaveBeenCalledWith(9, { focused: true });
     expect(sendResponse).toHaveBeenCalledWith({ type: 'NAV_OK' });
+  });
+
+  it('replaces only new tab pages with an extension-created tab', async () => {
+    const create = vi.fn().mockResolvedValue({ id: 99 });
+    const remove = vi.fn();
+    const redirect = createNewTabRedirect({ create, remove }, (path) => `chrome-extension://abc/${path}`);
+
+    redirect({ id: 1, index: 4, windowId: 7, pendingUrl: 'chrome://newtab/' });
+    expect(create).toHaveBeenCalledWith({
+      url: 'chrome-extension://abc/src/newtab/index.html',
+      index: 4,
+      windowId: 7
+    });
+    await vi.waitFor(() => {
+      expect(remove).toHaveBeenCalledWith(1);
+    });
+
+    create.mockClear();
+    redirect({ id: 2, index: 0, windowId: 7, pendingUrl: 'https://example.com/' });
+    redirect({ id: 3, index: 0, windowId: 7, url: 'https://example.com/' });
+    redirect({ index: 0, windowId: 7, pendingUrl: 'chrome://newtab/' });
+    expect(create).not.toHaveBeenCalled();
   });
 });

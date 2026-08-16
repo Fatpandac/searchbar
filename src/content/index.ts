@@ -19,6 +19,7 @@ type ContentControllerOptions = {
   renderOverlay?: RenderOverlay;
   destroyOverlay?: DestroyOverlay;
   runtime?: typeof chrome.runtime;
+  isMac?: boolean;
 };
 
 type HostState = {
@@ -80,6 +81,7 @@ export function isEditableTarget(target: EventTarget | null): boolean {
 export function createContentController(options: ContentControllerOptions = {}) {
   const render = options.renderOverlay ?? renderOverlay;
   const destroy = options.destroyOverlay ?? destroyOverlay;
+  const isMac = options.isMac ?? /Mac|iP(hone|ad|od)/.test(navigator.platform);
   let state: HostState | null = null;
   let started = false;
   let compositionActive = false;
@@ -135,8 +137,13 @@ export function createContentController(options: ContentControllerOptions = {}) 
     }
 
     const isKeyDown = event instanceof KeyboardEvent && event.type === 'keydown';
+    // 按平台取修饰键：macOS 上开关键是 Cmd+K，Ctrl+K 留给 overlay 做「上移选中」；
+    // 其他平台开关键才是 Ctrl+K。
     const isSummon =
-      isKeyDown && event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey) && !event.altKey;
+      isKeyDown &&
+      event.key.toLowerCase() === 'k' &&
+      (isMac ? event.metaKey : event.ctrlKey) &&
+      !event.altKey;
 
     // 开关键必须排在所有早退之前无条件抢占：
     // - 焦点在页面输入框时（如 GitHub 命令面板），不能被 isEditableTarget 丢掉，否则召不出来；

@@ -64,7 +64,9 @@ describe('createContentController', () => {
   });
 
   it('toggles from Cmd/Ctrl+K when focus is not editable', () => {
-    const controller = trackController(createContentController({ renderOverlay: vi.fn(), destroyOverlay: vi.fn() }));
+    const controller = trackController(
+      createContentController({ renderOverlay: vi.fn(), destroyOverlay: vi.fn(), isMac: true })
+    );
     controller.start();
 
     const event = new KeyboardEvent('keydown', {
@@ -426,7 +428,8 @@ describe('createContentController', () => {
           root.appendChild(overlayInput);
           return { focus: vi.fn(), handleKeyboardEvent: vi.fn() };
         }),
-        destroyOverlay: vi.fn()
+        destroyOverlay: vi.fn(),
+        isMac: true
       })
     );
 
@@ -445,6 +448,33 @@ describe('createContentController', () => {
     );
 
     expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(0);
+  });
+
+  // macOS 上 Ctrl+K 是 overlay 里的「上移选中」，不能被当成开关键关掉 overlay。
+  it('forwards Ctrl+K to the overlay on macOS instead of dismissing', () => {
+    const handleKeyboardEvent = vi.fn();
+    const controller = trackController(
+      createContentController({
+        renderOverlay: vi.fn(() => ({ focus: vi.fn(), handleKeyboardEvent })),
+        destroyOverlay: vi.fn(),
+        isMac: true
+      })
+    );
+
+    controller.start();
+    controller.mount();
+
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true
+      })
+    );
+
+    expect(document.querySelectorAll('[data-searchbar-host="true"]')).toHaveLength(1);
+    expect(handleKeyboardEvent).toHaveBeenCalledTimes(1);
   });
 
   it('toggles when the background sends a TOGGLE message', () => {

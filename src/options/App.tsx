@@ -3,8 +3,11 @@ import type { SearchEngine } from '../shared/search-engines';
 import { getCustomSearchEngines, saveCustomSearchEngines } from '../shared/search-engine-storage';
 import {
   DEFAULT_OPEN_TARGET,
+  DEFAULT_VIM_MODE,
   getDefaultOpenTarget,
+  getVimMode,
   saveDefaultOpenTarget,
+  saveVimMode,
   type DefaultOpenTarget
 } from '../shared/settings-storage';
 import { resolveSearchEngineModeColor } from '../overlay/mode-color';
@@ -14,6 +17,8 @@ export type OptionsAppProps = {
   saveCustomEngines?: (engines: SearchEngine[]) => Promise<void>;
   loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
   saveDefaultOpenTarget?: (target: DefaultOpenTarget) => Promise<void>;
+  loadVimMode?: () => Promise<boolean>;
+  saveVimMode?: (enabled: boolean) => Promise<void>;
   resolveModeColor?: (engine: SearchEngine) => Promise<string | undefined>;
 };
 
@@ -30,11 +35,14 @@ export function OptionsApp({
   saveCustomEngines: saveEngines = saveCustomSearchEngines,
   loadDefaultOpenTarget: loadOpenTarget = getDefaultOpenTarget,
   saveDefaultOpenTarget: saveOpenTarget = saveDefaultOpenTarget,
+  loadVimMode: loadVim = getVimMode,
+  saveVimMode: saveVim = saveVimMode,
   resolveModeColor = resolveSearchEngineModeColor
 }: OptionsAppProps) {
   const [engines, setEngines] = useState<SearchEngine[]>([]);
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
+  const [vimMode, setVimMode] = useState(DEFAULT_VIM_MODE);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -64,6 +72,25 @@ export function OptionsApp({
       cancelled = true;
     };
   }, [loadOpenTarget]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadVim().then((nextVimMode) => {
+      if (!cancelled) {
+        setVimMode(nextVimMode);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadVim]);
+
+  const changeVimMode = async (enabled: boolean) => {
+    setVimMode(enabled);
+    await saveVim(enabled);
+  };
 
   const addEngine = async () => {
     const baseEngine = createEngine(draft);
@@ -119,6 +146,20 @@ export function OptionsApp({
               onChange={() => void changeDefaultOpenTarget('newTab')}
             />
             <span>Open in new tab</span>
+          </label>
+        </div>
+      </section>
+
+      <section className="options-setting" aria-label="Vim mode">
+        <h2>Vim Mode</h2>
+        <div className="options-radio-group">
+          <label>
+            <input
+              type="checkbox"
+              checked={vimMode}
+              onChange={(event) => void changeVimMode(event.currentTarget.checked)}
+            />
+            <span>Use Ctrl+J / Ctrl+K to move the selection</span>
           </label>
         </div>
       </section>

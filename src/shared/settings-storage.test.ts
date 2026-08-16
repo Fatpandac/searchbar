@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_OPEN_TARGET,
+  DEFAULT_VIM_MODE,
   getDefaultOpenTarget,
-  saveDefaultOpenTarget
+  getVimMode,
+  saveDefaultOpenTarget,
+  saveVimMode
 } from './settings-storage';
 
 function createStorage(initial: Record<string, unknown> = {}) {
@@ -35,5 +38,19 @@ describe('settings storage', () => {
     await saveDefaultOpenTarget('newTab', storage);
 
     expect(storage.set).toHaveBeenCalledWith({ searchbarDefaultOpenTarget: 'newTab' });
+  });
+
+  it('loads the saved vim mode and falls back for invalid values', async () => {
+    expect(await getVimMode(createStorage({ searchbarVimMode: false }))).toBe(false);
+    expect(await getVimMode(createStorage({ searchbarVimMode: 'yes' }))).toBe(DEFAULT_VIM_MODE);
+    expect(await getVimMode(createStorage())).toBe(DEFAULT_VIM_MODE);
+  });
+
+  it('saves the vim mode', async () => {
+    const storage = createStorage();
+
+    await saveVimMode(false, storage);
+
+    expect(storage.set).toHaveBeenCalledWith({ searchbarVimMode: false });
   });
 });

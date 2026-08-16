@@ -109,4 +109,33 @@ describe('OptionsApp', () => {
     });
     expect((newTab as HTMLInputElement).checked).toBe(true);
   });
+
+  it('loads and saves the vim mode toggle', async () => {
+    const loadVimMode = vi.fn(() => Promise.resolve(false));
+    const saveVimMode = vi.fn<(_: boolean) => Promise<void>>(() => Promise.resolve());
+
+    render(
+      <OptionsApp
+        loadCustomEngines={() => Promise.resolve([])}
+        saveCustomEngines={() => Promise.resolve()}
+        loadVimMode={loadVimMode}
+        saveVimMode={saveVimMode}
+      />
+    );
+
+    const toggle = (await screen.findByLabelText(
+      'Use Ctrl+J / Ctrl+K to move the selection'
+    )) as HTMLInputElement;
+
+    await waitFor(() => {
+      expect(toggle.checked).toBe(false);
+    });
+
+    fireEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(saveVimMode).toHaveBeenCalledWith(true);
+    });
+    expect(toggle.checked).toBe(true);
+  });
 });

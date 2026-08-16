@@ -15,7 +15,9 @@ import {
 import { loadSearchEngines } from '../shared/search-engine-storage';
 import {
   DEFAULT_OPEN_TARGET,
+  DEFAULT_VIM_MODE,
   getDefaultOpenTarget,
+  getVimMode,
   type DefaultOpenTarget
 } from '../shared/settings-storage';
 import { queryChromePages } from '../shared/chrome-pages';
@@ -42,6 +44,7 @@ export type AppProps = {
   sendMessage?: (message: SearchRequest) => Promise<SearchResponse>;
   loadEngines?: () => Promise<SearchEngine[]>;
   loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
+  loadVimMode?: () => Promise<boolean>;
   loadCounts?: () => Promise<SelectionCounts>;
   detectSite?: () => SiteSearchProvider | null;
 };
@@ -53,6 +56,7 @@ export function App({
   sendMessage = sendChromeMessage,
   loadEngines = loadSearchEngines,
   loadDefaultOpenTarget = getDefaultOpenTarget,
+  loadVimMode = getVimMode,
   loadCounts = loadSelectionCounts,
   detectSite = detectSiteSearch
 }: AppProps) {
@@ -70,6 +74,7 @@ export function App({
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
+  const [vimMode, setVimMode] = useState(DEFAULT_VIM_MODE);
   const inputRef = useRef<HTMLInputElement>(null);
   const selectionCounts = useRef<SelectionCounts>({});
   const replaceSuggestions = (nextSuggestions: Suggestion[]) => {
@@ -123,6 +128,20 @@ export function App({
       cancelled = true;
     };
   }, [loadDefaultOpenTarget]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadVimMode().then((nextVimMode) => {
+      if (!cancelled) {
+        setVimMode(nextVimMode);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadVimMode]);
 
   useEffect(() => {
     void loadCounts().then((counts) => {
@@ -458,14 +477,14 @@ export function App({
       return;
     }
 
-    if (isMoveDownKey(event)) {
+    if (isMoveDownKey(event, vimMode)) {
       event.preventDefault();
       setSelectedByUser(true);
       setSelectedIndex((current) => wrapIndex(current + 1, suggestions.length));
       return;
     }
 
-    if (isMoveUpKey(event)) {
+    if (isMoveUpKey(event, vimMode)) {
       event.preventDefault();
       setSelectedByUser(true);
       setSelectedIndex((current) => wrapIndex(current - 1, suggestions.length));
@@ -513,12 +532,12 @@ export function App({
   );
 }
 
-function isMoveDownKey(event: KeyboardEvent): boolean {
-  return event.key === 'ArrowDown' || (event.ctrlKey && event.key.toLowerCase() === 'j');
+function isMoveDownKey(event: KeyboardEvent, vimMode: boolean): boolean {
+  return event.key === 'ArrowDown' || (vimMode && event.ctrlKey && event.key.toLowerCase() === 'j');
 }
 
-function isMoveUpKey(event: KeyboardEvent): boolean {
-  return event.key === 'ArrowUp' || (event.ctrlKey && event.key.toLowerCase() === 'k');
+function isMoveUpKey(event: KeyboardEvent, vimMode: boolean): boolean {
+  return event.key === 'ArrowUp' || (vimMode && event.ctrlKey && event.key.toLowerCase() === 'k');
 }
 
 function isComposingKey(event: KeyboardEvent): boolean {

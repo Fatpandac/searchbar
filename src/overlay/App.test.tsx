@@ -6,7 +6,10 @@ import type { DefaultOpenTarget } from '../shared/settings-storage';
 
 function setup(
   responder: (message: SearchRequest) => Promise<SearchResponse> | SearchResponse,
-  options: { loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget> } = {}
+  options: {
+    loadDefaultOpenTarget?: () => Promise<DefaultOpenTarget>;
+    loadVimMode?: () => Promise<boolean>;
+  } = {}
 ) {
   const sendMessage = vi.fn((message: SearchRequest) => Promise.resolve(responder(message)));
   const onClose = vi.fn();
@@ -913,6 +916,34 @@ describe('App', () => {
     await waitFor(() => {
       expect(sendMessage).toHaveBeenCalledWith({ type: 'OPEN_TAB', tabId: 2 });
     });
+  });
+
+  it('ignores Ctrl+J and Ctrl+K when vim mode is disabled', async () => {
+    const { input } = setup(
+      (message) => {
+        if (message.type === 'QUERY_TABS') {
+          return {
+            type: 'TABS',
+            results: [
+              { type: 'tab', tabId: 1, title: 'First Tab', url: 'https://first.example.com' },
+              { type: 'tab', tabId: 2, title: 'Second Tab', url: 'https://second.example.com' }
+            ]
+          };
+        }
+        return { type: 'NAV_OK' };
+      },
+      { loadVimMode: () => Promise.resolve(false) }
+    );
+
+    fireEvent.keyDown(input, { key: 'Tab' });
+    expect(await screen.findByText('Second Tab')).toBeTruthy();
+
+    fireEvent.keyDown(input, { key: 'j', ctrlKey: true });
+    expect(screen.getAllByRole('option')[0].getAttribute('data-selected')).toBe('true');
+
+    // 方向键不受 vim mode 影响
+    fireEvent.keyDown(input, { key: 'ArrowDown' });
+    expect(screen.getAllByRole('option')[1].getAttribute('data-selected')).toBe('true');
   });
 
   it('resets the selected item immediately after the search content changes', async () => {

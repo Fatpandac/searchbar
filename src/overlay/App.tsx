@@ -9,7 +9,6 @@ import {
   createGoogleSearchSuggestion,
   createGoToSuggestion,
   createSearchEngineSuggestion,
-  rankSuggestions,
   shouldCreateGoToSuggestion
 } from '../shared/suggestion';
 import { loadSearchEngines } from '../shared/search-engine-storage';
@@ -236,9 +235,10 @@ export function App({
             setLoading(false);
             const googleSuggestions =
               googleResponse.type === 'GOOGLE_SUGGESTIONS' ? googleResponse.results : [];
+            // 背景页已用 fzf 匹配 + 排序，前端不再二次过滤（子串打分会丢掉乱序命中）。
             const historySuggestions =
               historyResponse.type === 'HISTORY'
-                ? rankSuggestions(trimmed, historyResponse.results).slice(0, GOOGLE_MODE_HISTORY_LIMIT)
+                ? historyResponse.results.slice(0, GOOGLE_MODE_HISTORY_LIMIT)
                 : [];
 
             if (googleResponse.type === 'GOOGLE_SUGGESTIONS' || historyResponse.type === 'HISTORY') {
@@ -315,7 +315,7 @@ export function App({
 
         setLoading(false);
         if (response.type === 'HISTORY') {
-          replaceSuggestions(rankSuggestions(trimmed, response.results));
+          replaceSuggestions(response.results);
           setError(null);
         } else if (response.type === 'ERROR') {
           setError(response.message);

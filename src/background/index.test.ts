@@ -57,10 +57,10 @@ describe('createMessageHandler', () => {
     });
   });
 
-  it('falls back to local history matching when a compact query omits title separators', async () => {
+  it('fuzzy matches recent history regardless of word order', async () => {
     const api = chromeApi();
+    // 第一次调用是历史池（text: ''），第二次是原生搜索。
     api.history.search
-      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {
           title: 'GitHub',
@@ -69,24 +69,29 @@ describe('createMessageHandler', () => {
           lastVisitTime: 100
         },
         {
-          title: 'Hacker News',
-          url: 'https://news.ycombinator.com',
+          title: 'Show HackerNews',
+          url: 'https://news.ycombinator.com/show',
           visitCount: 3,
           lastVisitTime: 200
         }
-      ]);
+      ])
+      .mockResolvedValueOnce([]);
     const sendResponse = vi.fn();
 
-    await createMessageHandler(asBackgroundApi(api))({ type: 'QUERY_HISTORY', query: 'hackernews' }, {}, sendResponse);
+    await createMessageHandler(asBackgroundApi(api))(
+      { type: 'QUERY_HISTORY', query: 'hackernews show' },
+      {},
+      sendResponse
+    );
 
     expect(api.history.search).toHaveBeenNthCalledWith(1, {
-      text: 'hackernews',
-      maxResults: 25,
+      text: '',
+      maxResults: 2000,
       startTime: 0
     });
     expect(api.history.search).toHaveBeenNthCalledWith(2, {
-      text: '',
-      maxResults: 200,
+      text: 'hackernews show',
+      maxResults: 25,
       startTime: 0
     });
     expect(sendResponse).toHaveBeenCalledWith({
@@ -94,13 +99,28 @@ describe('createMessageHandler', () => {
       results: [
         {
           type: 'history',
-          title: 'Hacker News',
-          url: 'https://news.ycombinator.com',
+          title: 'Show HackerNews',
+          url: 'https://news.ycombinator.com/show',
           visitCount: 3,
           lastVisitTime: 200
         }
       ]
     });
+  });
+
+  it('reuses the cached history pool across queries', async () => {
+    const api = chromeApi();
+    api.history.search.mockResolvedValue([
+      { title: 'GitHub', url: 'https://github.com', visitCount: 1, lastVisitTime: 100 }
+    ]);
+    const sendResponse = vi.fn();
+    const handler = createMessageHandler(asBackgroundApi(api));
+
+    await handler({ type: 'QUERY_HISTORY', query: 'git' }, {}, sendResponse);
+    await handler({ type: 'QUERY_HISTORY', query: 'github' }, {}, sendResponse);
+
+    const poolCalls = api.history.search.mock.calls.filter(([query]) => query.text === '');
+    expect(poolCalls).toHaveLength(1);
   });
 
   it('queries tabs in the sender window and fuzzy matches tabs by title or URL', async () => {

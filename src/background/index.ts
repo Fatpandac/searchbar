@@ -6,7 +6,7 @@ import type {
   SearchResult,
   TabResult
 } from '../shared/messages';
-import { createGoogleSearchSuggestion, rankSuggestions } from '../shared/suggestion';
+import { createGoogleSearchSuggestion } from '../shared/suggestion';
 
 type SendResponse = (response: SearchResponse) => void;
 type ChromeApi = Pick<typeof chrome, 'history' | 'runtime' | 'tabs' | 'windows' | 'commands'>;
@@ -28,11 +28,28 @@ type FaviconPayload = {
 };
 
 const HISTORY_SEARCH_MAX_RESULTS = 25;
-const HISTORY_FALLBACK_MAX_RESULTS = 200;
+// 最近历史池：在这个范围内用 fzf 做词序无关的模糊匹配；更老的历史靠原生搜索兔底。
+const HISTORY_POOL_MAX_RESULTS = 2000;
+const HISTORY_POOL_TTL_MS = 30_000;
 
 export function createMessageHandler(chromeApi: BackgroundChromeApi, options: MessageHandlerOptions = {}) {
   const fetchGoogleSuggestions = options.fetchGoogleSuggestions ?? fetchGoogleSuggestPayload;
   const fetchFavicon = options.fetchFavicon ?? fetchFaviconPayload;
+
+  // ponytail: 池子缓在 service worker 内存里，worker 回收即失效；够用，不做持久化。
+  let historyPool: { items: HistoryResult[]; fetchedAt: number } | null = null;
+
+  const getHistoryPool = async (): Promise<HistoryResult[]> => {
+    if (historyPool && Date.now() - historyPool.fetchedAt < HISTORY_POOL_TTL_MS) {
+      return historyPool.items;
+    }
+
+    const items = mapHistoryItems(
+      await chromeApi.history.search({ text: '', maxResults: HISTORY_POOL_MAX_RESULTS, startTime: 0 })
+    );
+    historyPool = { items, fetchedAt: Date.now() };
+    return items;
+  };
 
   return async (
     message: SearchRequest,
@@ -42,25 +59,22 @@ export function createMessageHandler(chromeApi: BackgroundChromeApi, options: Me
     try {
       if (message.type === 'QUERY_HISTORY') {
         const query = message.query.trim();
-        const historyItems = await chromeApi.history.search({
-          text: query,
-          maxResults: HISTORY_SEARCH_MAX_RESULTS,
-          startTime: 0
-        });
-        const fallbackHistoryItems =
-          historyItems.length === 0 && shouldSearchRecentHistoryFallback(query)
-            ? await chromeApi.history.search({
-                text: '',
-                maxResults: HISTORY_FALLBACK_MAX_RESULTS,
+        const [pool, nativeItems] = await Promise.all([
+          getHistoryPool(),
+          query
+            ? chromeApi.history.search({
+                text: query,
+                maxResults: HISTORY_SEARCH_MAX_RESULTS,
                 startTime: 0
               })
-            : [];
-        const results = mapHistoryItems([...historyItems, ...fallbackHistoryItems]);
+            : Promise.resolve([])
+        ]);
+        const results = dedupeHistoryByUrl([
+          ...queryHistoryPool(pool, query),
+          ...mapHistoryItems(nativeItems)
+        ]).slice(0, HISTORY_SEARCH_MAX_RESULTS);
 
-        sendResponse({
-          type: 'HISTORY',
-          results: fallbackHistoryItems.length > 0 ? rankSuggestions(query, results) : results
-        });
+        sendResponse({ type: 'HISTORY', results });
         return;
       }
 
@@ -165,8 +179,34 @@ function mapHistoryItems(historyItems: chrome.history.HistoryItem[]): HistoryRes
     }));
 }
 
-function shouldSearchRecentHistoryFallback(query: string): boolean {
-  return query.length >= 4 && /^[a-z0-9]+$/i.test(query);
+function queryHistoryPool(pool: HistoryResult[], query: string): HistoryResult[] {
+  if (!query) {
+    return pool.slice(0, HISTORY_SEARCH_MAX_RESULTS);
+  }
+
+  return new Fzf(pool, {
+    selector: (item) => `${item.title} ${item.url}`,
+    match: extendedMatch,
+    limit: HISTORY_SEARCH_MAX_RESULTS,
+    tiebreakers: [
+      (a, b) => (b.item.visitCount ?? 0) - (a.item.visitCount ?? 0),
+      (a, b) => (b.item.lastVisitTime ?? 0) - (a.item.lastVisitTime ?? 0)
+    ]
+  })
+    .find(query)
+    .map((entry) => entry.item);
+}
+
+function dedupeHistoryByUrl(items: HistoryResult[]): HistoryResult[] {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (seen.has(item.url)) {
+      return false;
+    }
+    seen.add(item.url);
+    return true;
+  });
 }
 
 function queryTabs(tabs: QueryableTab[], query: string): QueryableTab[] {

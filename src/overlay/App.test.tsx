@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/preact';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { App } from './App';
-import type { SearchRequest, SearchResponse } from '../shared/messages';
+import { App, mergeGoogleModeSuggestions } from './App';
+import type { SearchRequest, SearchResponse, Suggestion } from '../shared/messages';
 import type { DefaultOpenTarget } from '../shared/settings-storage';
 
 function setup(
@@ -1170,5 +1170,49 @@ describe('App', () => {
     fireEvent.keyDown(input, { key: 'Escape' });
 
     expect(onClose).toHaveBeenCalled();
+  });
+});
+
+describe('mergeGoogleModeSuggestions', () => {
+  const search = (title: string): Suggestion => ({
+    type: 'search',
+    title,
+    url: `https://www.google.com/search?q=${title}`
+  });
+  const history = (title: string): Suggestion => ({
+    type: 'history',
+    title,
+    url: `https://example.com/${title}`
+  });
+
+  it('keeps at least three google suggestions when history is full', () => {
+    const base = [search('static'), history('chrome1'), history('chrome2'), history('chrome3')];
+    const merged = mergeGoogleModeSuggestions(
+      base,
+      [search('g1'), search('g2'), search('g3'), search('g4')],
+      [history('h1'), history('h2'), history('h3'), history('h4'), history('h5')]
+    );
+
+    expect(merged).toHaveLength(10);
+    expect(merged.filter((item) => item.title.startsWith('g'))).toHaveLength(3);
+    expect(merged.filter((item) => item.title.startsWith('h'))).toHaveLength(3);
+  });
+
+  it('lets history use free slots when there are few google suggestions', () => {
+    const merged = mergeGoogleModeSuggestions(
+      [search('static')],
+      [search('g1')],
+      [history('h1'), history('h2'), history('h3'), history('h4'), history('h5')]
+    );
+
+    expect(merged.map((item) => item.title)).toEqual([
+      'static',
+      'h1',
+      'h2',
+      'h3',
+      'h4',
+      'h5',
+      'g1'
+    ]);
   });
 });

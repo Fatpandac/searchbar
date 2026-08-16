@@ -591,10 +591,25 @@ function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
   });
 }
 
-function mergeGoogleModeSuggestions(
+const GOOGLE_MODE_SUGGESTION_LIMIT = 10;
+const GOOGLE_MODE_MIN_GOOGLE_SUGGESTIONS = 3;
+
+export function mergeGoogleModeSuggestions(
   baseSuggestions: Suggestion[],
   googleSuggestions: Suggestion[],
   historySuggestions: Suggestion[]
 ): Suggestion[] {
-  return dedupeSuggestions([...baseSuggestions, ...historySuggestions, ...googleSuggestions]).slice(0, 10);
+  // 先排 history 后排 google，总共只留 10 个坑：不限幅的话 history 会把联想词挤到只剩 1 个，
+  // 所以给联想词保底配额，超出时削 history。
+  const reservedForGoogle = Math.min(googleSuggestions.length, GOOGLE_MODE_MIN_GOOGLE_SUGGESTIONS);
+  const historyBudget = Math.max(
+    0,
+    GOOGLE_MODE_SUGGESTION_LIMIT - baseSuggestions.length - reservedForGoogle
+  );
+
+  return dedupeSuggestions([
+    ...baseSuggestions,
+    ...historySuggestions.slice(0, historyBudget),
+    ...googleSuggestions
+  ]).slice(0, GOOGLE_MODE_SUGGESTION_LIMIT);
 }

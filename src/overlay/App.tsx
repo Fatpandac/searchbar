@@ -415,6 +415,8 @@ export function App({
       void recordSelection(query, suggestion.url, selectionCounts.current);
     }
 
+    // 新标签页里跳转后面板还留着，输入必须清空；覆盖层会整体卸载，清空无副作用。
+    setQuery('');
     onClose();
   };
 

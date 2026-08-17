@@ -70,6 +70,9 @@ describe('App', () => {
       });
     });
     expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(input.value).toBe('');
+    });
   });
 
   it('defaults to Google search and navigates the query on Enter without querying history', async () => {

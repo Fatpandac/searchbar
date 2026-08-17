@@ -71,6 +71,8 @@ export function App({
   const lastPointerPosition = useRef<{ x: number; y: number } | null>(null);
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  // 跳转期间浏览器还停在旧页面，保持指示条转着，避免看起来「没反应」。
+  const [navigating, setNavigating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeEngine, setActiveEngine] = useState<SearchEngine | null>(null);
   const [defaultOpenTarget, setDefaultOpenTarget] = useState<DefaultOpenTarget>(DEFAULT_OPEN_TARGET);
@@ -393,6 +395,8 @@ export function App({
       return;
     }
 
+    setNavigating(true);
+
     const response =
       suggestion?.type === 'tab'
         ? await sendMessage({ type: 'OPEN_TAB', tabId: suggestion.tabId })
@@ -407,6 +411,7 @@ export function App({
           });
 
     if (response.type === 'ERROR') {
+      setNavigating(false);
       setError(response.message);
       return;
     }
@@ -508,6 +513,7 @@ export function App({
         className="searchbar-panel"
         data-visible={visible}
         data-loading={loading}
+        data-navigating={navigating}
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}

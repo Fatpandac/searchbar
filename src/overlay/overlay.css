@@ -57,9 +57,20 @@
   pointer-events: none;
 }
 
-.searchbar-panel[data-loading="true"]::before {
+.searchbar-panel[data-loading="true"]::before,
+.searchbar-panel[data-navigating="true"]::before {
   opacity: 1;
   animation: searchbar-sweep 1.1s ease-in-out infinite alternate;
+}
+
+/* 跳转中：整块面板轻微下沉变淡，配合顶部扫光说明「正在离开」。 */
+.searchbar-panel[data-navigating="true"] {
+  opacity: 0.72;
+  transform: translateX(-50%) translateY(-2px) scale(0.995);
+}
+
+.searchbar-panel[data-navigating="true"]::before {
+  animation-duration: 0.6s;
 }
 
 /* 0 = 贴左边，233.33% = 自身宽度的 70/30，刚好贴右边；配 alternate 就是到边折返。 */
@@ -315,10 +326,16 @@
   }
 
   /* 不做位移，改成一条静态的细线，仍然能表示「在加载」。 */
-  .searchbar-panel[data-loading="true"]::before {
+  .searchbar-panel[data-loading="true"]::before,
+  .searchbar-panel[data-navigating="true"]::before {
     width: 100%;
     opacity: 0.5;
     animation: none;
+  }
+
+  .searchbar-panel[data-navigating="true"] {
+    opacity: 0.72;
+    transform: translateX(-50%);
   }
 
   .searchbar-mode {

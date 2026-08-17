@@ -27,6 +27,7 @@ if (root) {
     document.querySelector('input')?.focus({ preventScroll: true });
   };
 
-  render(<App onClose={refocus} />, root);
+  // 新标签页本身就是空白页，Enter 直接在当前标签页跳转；Ctrl+Enter 仍可反向开新标签页。
+  render(<App onClose={refocus} loadDefaultOpenTarget={() => Promise.resolve('currentTab')} />, root);
   grabFocusFromOmnibox();
 }

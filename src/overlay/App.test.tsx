@@ -75,6 +75,33 @@ describe('App', () => {
     });
   });
 
+  it('marks the panel as navigating while the browser is still on the old page', async () => {
+    const { input } = setup(() => ({ type: 'NAV_OK' }));
+    const panel = document.querySelector('.searchbar-panel') as HTMLElement;
+
+    fireEvent.input(input, { target: { value: 'github.com/foo' } });
+    await screen.findByText('Go to github.com/foo');
+    expect(panel.dataset.navigating).toBe('false');
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(panel.dataset.navigating).toBe('true');
+    });
+  });
+
+  it('clears the navigating state when navigation fails', async () => {
+    const { input } = setup(() => ({ type: 'ERROR', message: 'nope' }));
+    const panel = document.querySelector('.searchbar-panel') as HTMLElement;
+
+    fireEvent.input(input, { target: { value: 'github.com/foo' } });
+    await screen.findByText('Go to github.com/foo');
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await screen.findByText('nope');
+    expect(panel.dataset.navigating).toBe('false');
+  });
+
   it('defaults to Google search and navigates the query on Enter without querying history', async () => {
     const { input, sendMessage, onClose } = setup((message) => {
       if (message.type === 'QUERY_HISTORY') {
